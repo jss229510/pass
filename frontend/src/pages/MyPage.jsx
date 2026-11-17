@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 const navigation = ["내 대시보드", "내 이사 조건", "관심 목록", "비교 기록", "계약서 분석 내역", "이사 체크리스트", "알림 설정", "계정 정보"];
-const activities = [[<DashboardIcon name="map" />, "지역 비교 분석", "서울 강서구 → 대전 유성구", "오늘"], [<DashboardIcon name="document" />, "계약서 분석", "임대차계약서_OCR.pdf", "어제"], [<DashboardIcon name="calculator" />, "이사 비용 분석", "서울 → 대전 예상 비용", "3일 전"]];
+const activities = [[<DashboardIcon name="map" />, "지역 비교 분석", "서울 강서구와 대전 유성구 비교", "오늘"], [<DashboardIcon name="document" />, "계약서 분석", "임대차계약서_OCR.pdf", "어제"], [<DashboardIcon name="calculator" />, "이사 비용 분석", "서울과 대전 예상 비용", "3일 전"]];
 const alerts = [["📣", "청년 월세 지원 신청 마감 임박", "대전시 청년 월세 지원 · D-7"], ["🔔", "계약서 분석이 완료되었어요.", "임대차계약서_OCR.pdf"], ["✓", "이사 체크리스트가 업데이트되었어요.", "계약일 기준 일정이 반영되었어요."]];
 
 function DashboardIcon({ name }) {
