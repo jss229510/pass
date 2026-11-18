@@ -178,10 +178,8 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
         .qna-badge{padding:3px 8px;border-radius:5px;background:#f1f8f6;color:#4c605d;font-size:11px;font-weight:800}
         .qna-badge.done{background:#e3f6ef;color:#008b70}
         .qna-badge.wait{background:#fff4dc;color:#9a6c12}
-        .qna-title-row{display:flex;justify-content:space-between;gap:16px}
+        .qna-title-row{display:flex;gap:16px}
         .qna-title-row b{font-size:16px;line-height:1.45;color:#22433a}
-        .qna-title-row i{flex:none;color:#008b70;font-style:normal;transition:transform .2s}
-        .qna-question[aria-expanded="true"] .qna-title-row i{transform:rotate(180deg)}
         .qna-preview{margin:6px 0 0;color:#6b817a;font-size:13px;line-height:1.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .qna-question[aria-expanded="true"] .qna-preview{white-space:normal}
         .qna-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;color:#8a9b97;font-size:12px}
@@ -209,7 +207,7 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
         }
       `}</style>
 
-      <button className="qna-back" type="button" onClick={() => onNavigate("customer-center")}>← 고객센터로 돌아가기</button>
+      <button className="qna-back" type="button" onClick={() => onNavigate("customer-center")}>고객센터로 돌아가기</button>
 
       <header className="qna-hero">
         <div>
@@ -261,7 +259,7 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
                   <span className="qna-badge">{question.category}</span>
                   <span className={`qna-badge ${hasAnswer ? "done" : "wait"}`}>{hasAnswer ? "답변완료" : "답변대기"}</span>
                 </div>
-                <div className="qna-title-row"><b>{question.title}</b><i aria-hidden="true">⌄</i></div>
+                <div className="qna-title-row"><b>{question.title}</b></div>
                 <p className="qna-preview">{question.body}</p>
                 <div className="qna-meta">
                   <span>{question.author === "나" ? "나" : maskAuthor(question.author)}</span>

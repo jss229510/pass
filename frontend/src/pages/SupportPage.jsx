@@ -21,7 +21,7 @@ function SupportPage({ onDocuments }) {
       `}</style>
       <header className="support-hero"><div><p className="support-kicker">YOUTH HOUSING SUPPORT</p><h1>이동할 지역에서 받을 수 있는<br /><b>혜택을 먼저 확인하세요.</b></h1><p>청년 월세 지원, 공공임대, 지자체 이사 지원 등<br />내 조건에 맞는 주거지원 혜택을 한눈에 비교할 수 있어요.</p></div><div className="support-visual"><Illustration name="house" /></div></header>
       <p className="support-result-label">조건 기반 맞춤 결과　›</p>
-      <section className="support-card-grid">{supports.map((support, index) => { const detail = supportDetails[index]; return <article className="housing-support-card" key={support.title}><span className="support-status">{support.status}</span><h2>{support.title}</h2><p>{detail.description}</p><ul className="support-points">{detail.points.map((point) => <li key={point}>{point}</li>)}</ul><button className="support-doc-button" type="button" onClick={onDocuments}>필요 서류 확인　→</button><div className="support-art"><Illustration name={detail.icon} /></div></article>; })}</section>
+      <section className="support-card-grid">{supports.map((support, index) => { const detail = supportDetails[index]; return <article className="housing-support-card" key={support.title}><span className="support-status">{support.status}</span><h2>{support.title}</h2><p>{detail.description}</p><ul className="support-points">{detail.points.map((point) => <li key={point}>{point}</li>)}</ul><button className="support-doc-button" type="button" onClick={onDocuments}>필요 서류 확인</button><div className="support-art"><Illustration name={detail.icon} /></div></article>; })}</section>
       <aside className="support-notice"><i>🔔</i><div><b>알림　</b>실제 자격, HUG 보증 가능 여부, 지원 금액과 공고 일정은 공식 기관(LH·SH·지자체 등)의 공고문에서 최종 확인해야 합니다.</div></aside>
     </section>
   );

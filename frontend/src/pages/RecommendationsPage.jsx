@@ -1,11 +1,15 @@
 import React, { useMemo, useState } from "react";
 
-function RecommendationsPage({ budget, regions, onBack, onDetail, onNotify }) {
+function RecommendationsPage({ budget, regions, onBack, onDetail, onCompare, onNotify }) {
   const [selectedName, setSelectedName] = useState(regions[0]?.name);
+  const [comparisonNames, setComparisonNames] = useState([regions[0]?.name]);
   const selected = useMemo(
     () => regions.find((region) => region.name === selectedName) ?? regions[0],
     [regions, selectedName],
   );
+  const toggleComparison = (regionName) => {
+    setComparisonNames((names) => names.includes(regionName) ? names.filter((name) => name !== regionName) : [...names, regionName]);
+  };
 
   return (
     <section className="recommendations-page">
@@ -25,8 +29,8 @@ function RecommendationsPage({ budget, regions, onBack, onDetail, onNotify }) {
       <div className="recommend-layout">
         <section className="recommend-list-panel">
           <div className="result-title"><h2>추천 지역 비교</h2><span>AI 적합도 순</span></div>
-          {regions.map((region, index) => <article className={`region-result ${selectedName === region.name ? "selected" : ""}`} key={region.name} onMouseEnter={() => setSelectedName(region.name)}><div className="region-rank">0{index + 1}</div><div className="region-copy"><h3>{region.name}</h3><p>{index === 0 ? "교통과 다양한 생활시설을 함께 고려할 수 있는 지역" : index === 1 ? "주거비 부담은 낮추고 생활 편의성을 챙길 수 있는 지역" : "예산 안에서 생활 환경을 균형 있게 고려한 지역"}</p><div className="region-metrics"><span>적합도 <b>{region.score}점</b></span><span>예상 주거비 <b>{region.rent}</b></span><span>예상 통근 <b>{region.commute}</b></span></div></div><div className="region-actions"><button className="detail-button" onClick={() => onDetail(region)}>상세보기</button><button onClick={() => { setSelectedName(region.name); onNotify(`${region.name}을 비교 목록에 담았습니다.`); }}>비교에 추가</button></div></article>)}
-          <footer className="list-footer"><p>추천 결과는 입력 조건에 따른 예시이며, 실제 계약 전 공고와 현장 정보를 확인해 주세요.</p><button className="compare-button" onClick={() => onNotify("선택한 지역 비교 화면을 준비하고 있습니다.")}>지역 비교하기</button></footer>
+          {regions.map((region, index) => <article className={`region-result ${selectedName === region.name ? "selected" : ""}`} key={region.name} onMouseEnter={() => setSelectedName(region.name)}><div className="region-rank">0{index + 1}</div><div className="region-copy"><h3>{region.name}</h3><p>{index === 0 ? "교통과 다양한 생활시설을 함께 고려할 수 있는 지역" : index === 1 ? "주거비 부담은 낮추고 생활 편의성을 챙길 수 있는 지역" : "예산 안에서 생활 환경을 균형 있게 고려한 지역"}</p><div className="region-metrics"><span>적합도 <b>{region.score}점</b></span><span>예상 주거비 <b>{region.rent}</b></span><span>예상 통근 <b>{region.commute}</b></span></div></div><div className="region-actions"><button className="detail-button" onClick={() => onDetail(region)}>상세보기</button><button className={comparisonNames.includes(region.name) ? "compare-add selected" : "compare-add"} onClick={() => toggleComparison(region.name)}>{comparisonNames.includes(region.name) ? "비교 선택됨" : "비교에 추가"}</button></div></article>)}
+          <footer className="list-footer"><p>비교할 지역을 2곳 이상 선택해 주세요. 현재 {comparisonNames.length}곳 선택</p><button className="compare-button" onClick={() => comparisonNames.length < 2 ? onNotify("비교할 지역을 2곳 이상 선택해 주세요.") : onCompare(comparisonNames)}>선택 지역 비교하기</button></footer>
         </section>
         <aside className="map-panel"><header><h2>전국 추천 지역 지도</h2><p>선택한 지역과 전국 생활권을 함께 살펴보세요.</p></header><iframe title="전국 추천 지역 지도" src="https://www.openstreetmap.org/export/embed.html?bbox=126.10%2C34.20%2C129.60%2C38.70&amp;layer=mapnik" loading="lazy" /><div className="map-caption"><b>현재 선택 · {selected.name}</b><p>{selected.tags.join(" · ")} 조건에서 높은 적합도를 보였어요. 지도를 움직여 주변 역세권과 생활시설도 확인해 보세요.</p></div></aside>
       </div>
