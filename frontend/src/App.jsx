@@ -7,6 +7,7 @@ import AuthPage from "./pages/AuthPage";
 import ConditionsPage from "./pages/ConditionsPage";
 import CustomerCenterPage from "./pages/CustomerCenterPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import CommunityQnaPage from "./pages/CommunityQnaPage";
 import GuidePage from "./pages/GuidePage";
 import LandingPage from "./pages/LandingPage";
 import LivingCostPage from "./pages/LivingCostPage";
@@ -36,7 +37,7 @@ function App() {
 
   return (
     <div className="housing-app">
-      {!isAuthPage && <Header activeStep={step} isMapOpen={isQuickMapOpen} onMapToggle={() => setIsQuickMapOpen((isOpen) => !isOpen)} onNavigate={setStep} onNotify={notify} />}
+      {!isAuthPage && <Header activeStep={step === "community-qna" ? "customer-center" : step} isMapOpen={isQuickMapOpen} onMapToggle={() => setIsQuickMapOpen((isOpen) => !isOpen)} onNavigate={setStep} onNotify={notify} />}
       {!isAuthPage && isQuickMapOpen && <QuickMapPanel onClose={() => setIsQuickMapOpen(false)} />}
       <main className={step === "landing" ? "container landing-container" : isAuthPage ? "container auth-container" : "container"}>
         {step === "landing" && <LandingPage regions={regions} onStart={() => setStep("home")} onNavigate={setStep} onRegionDetail={openRegionDetail} />}
@@ -49,8 +50,8 @@ function App() {
         {step === "documents" && <DocumentsPage onNotify={notify} />}
         {step === "mypage" && <MyPage onNavigate={setStep} onNotify={notify} />}
         {step === "living-cost" && <LivingCostPage onNavigate={setStep} />}
-        {step === "guide" && <GuidePage onNavigate={setStep} />}
-        {step === "customer-center" && <CustomerCenterPage onNotify={notify} />}
+        {step === "guide" && <GuidePage onNavigate={setStep} />}        {step === "customer-center" && <CustomerCenterPage onNavigate={setStep} onNotify={notify} />}
+        {step === "community-qna" && <CommunityQnaPage onNavigate={setStep} onNotify={notify} />}
       </main>
       {toast && <div className="toast">{toast}</div>}
     </div>
