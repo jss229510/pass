@@ -15,11 +15,30 @@ const regionCenters = {
   "광주 북구": { lat: 35.1747, lng: 126.9121 },
 };
 
-function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange }) {
+function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange, roadviewRequest = 0, routeTarget = null }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const routeLineRef = useRef(null);
+  const routeMarkerRef = useRef(null);
   const [error, setError] = useState("");
+  const roadviewElementRef = useRef(null);
+  const roadviewRef = useRef(null);
+  const roadviewClientRef = useRef(null);
+  const lastRoadviewRequestRef = useRef(roadviewRequest);
+  const [isRoadviewOpen, setIsRoadviewOpen] = useState(false);
+  const [roadviewError, setRoadviewError] = useState("");
+  const [roadviewTarget, setRoadviewTarget] = useState(null);
+
+  useEffect(() => {
+    if (!isRoadviewOpen || !roadviewTarget || !roadviewRef.current) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      roadviewRef.current.relayout();
+      roadviewRef.current.setPanoId(roadviewTarget.panoId, roadviewTarget.position);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isRoadviewOpen, roadviewTarget]);
 
   useEffect(() => {
     const appKey = import.meta.env.VITE_KAKAO_MAP_KEY;
@@ -40,6 +59,11 @@ function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange }) {
             center: new window.kakao.maps.LatLng(center.lat, center.lng),
             level: 6,
           });
+        }
+
+        if (!roadviewRef.current && roadviewElementRef.current) {
+          roadviewRef.current = new window.kakao.maps.Roadview(roadviewElementRef.current);
+          roadviewClientRef.current = new window.kakao.maps.RoadviewClient();
         }
 
         const map = mapRef.current;
@@ -94,8 +118,97 @@ function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange }) {
     };
   }, [categoryId, onPlacesChange, regionName, searchQuery]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !window.kakao?.maps) return undefined;
+
+    if (routeLineRef.current) routeLineRef.current.setMap(null);
+    if (routeMarkerRef.current) routeMarkerRef.current.setMap(null);
+    routeLineRef.current = null;
+    routeMarkerRef.current = null;
+    if (!routeTarget) return undefined;
+
+    const start = map.getCenter();
+    const meters = Number.parseInt(routeTarget.distance, 10) || 300;
+    const latitudeOffset = (meters / 111000) * (routeTarget.rank % 2 === 0 ? -0.72 : 0.72);
+    const longitudeOffset = (meters / (111000 * Math.cos(start.getLat() * Math.PI / 180))) * (routeTarget.rank % 3 === 0 ? -0.72 : 0.72);
+    const destination = new window.kakao.maps.LatLng(start.getLat() + latitudeOffset, start.getLng() + longitudeOffset);
+    const routeColors = { "도보": "#16a34a", "대중교통": "#2563eb", "자동차": "#f97316" };
+
+    const routeLine = new window.kakao.maps.Polyline({
+      path: [start, destination],
+      strokeWeight: 6,
+      strokeColor: routeColors[routeTarget.mode] ?? "#008b70",
+      strokeOpacity: 0.88,
+      strokeStyle: "solid",
+    });
+    routeLine.setMap(map);
+
+    const routeMarker = new window.kakao.maps.Marker({
+      map,
+      position: destination,
+      title: `${routeTarget.mode} ${routeTarget.distance} · ${routeTarget.criterion}`,
+    });
+    const bounds = new window.kakao.maps.LatLngBounds();
+    bounds.extend(start);
+    bounds.extend(destination);
+    map.setBounds(bounds, 70, 70, 70, 70);
+
+    routeLineRef.current = routeLine;
+    routeMarkerRef.current = routeMarker;
+    return () => {
+      routeLine.setMap(null);
+      routeMarker.setMap(null);
+    };
+  }, [routeTarget]);
+
+  const openRoadview = () => {
+    const map = mapRef.current;
+    const roadview = roadviewRef.current;
+    const roadviewClient = roadviewClientRef.current;
+    if (!map || !roadview || !roadviewClient) return;
+
+    const position = map.getCenter();
+    setRoadviewError("");
+    roadviewClient.getNearestPanoId(position, 100, (panoId) => {
+      if (!panoId) {
+        setRoadviewError("현재 지도 중심 근처에는 로드뷰가 없습니다. 지도를 조금 이동한 뒤 다시 시도해 주세요.");
+        return;
+      }
+      setRoadviewTarget({ panoId, position });
+      setIsRoadviewOpen(true);
+    });
+  };
+
+  useEffect(() => {
+    if (roadviewRequest > lastRoadviewRequestRef.current) {
+      if (isRoadviewOpen) {
+        setIsRoadviewOpen(false);
+        setRoadviewTarget(null);
+        setRoadviewError("");
+      } else {
+        openRoadview();
+      }
+    }
+    lastRoadviewRequestRef.current = roadviewRequest;
+  }, [roadviewRequest, isRoadviewOpen]);
+
   if (error) return <div className="kakao-map-error">{error}</div>;
-  return <div className="kakao-map-canvas" ref={mapElementRef} aria-label={`${regionName} 지도`} />;
+  return (
+    <div className="kakao-map-canvas" aria-label={`${regionName} 지도`} style={{ position: "relative", overflow: "hidden" }}>
+      <div ref={mapElementRef} style={{ position: "absolute", inset: 0 }} />
+      {roadviewError && <p style={{ position: "absolute", zIndex: 2, top: 56, left: "50%", maxWidth: 300, margin: 0, padding: "8px 10px", borderRadius: 8, background: "#fff", color: "#8a4b25", fontSize: 11, lineHeight: 1.45, boxShadow: "0 4px 10px #143d3326", transform: "translateX(-50%)" }}>{roadviewError}</p>}
+      <div ref={roadviewElementRef} style={{ position: "absolute", zIndex: 3, inset: 0, visibility: isRoadviewOpen ? "visible" : "hidden", pointerEvents: isRoadviewOpen ? "auto" : "none" }}>
+        <button
+          type="button"
+          onClick={() => { setIsRoadviewOpen(false); setRoadviewTarget(null); }}
+          style={{ position: "absolute", zIndex: 4, top: 12, right: 12, border: 0, borderRadius: 8, padding: "8px 10px", background: "#fff", color: "#31564d", fontSize: 12, fontWeight: 800, boxShadow: "0 4px 10px #0004" }}
+        >
+          지도 보기
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default KakaoMap;
