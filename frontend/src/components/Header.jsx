@@ -3,12 +3,12 @@ import { FaMapMarkedAlt } from "react-icons/fa";
 
 function Header({ activeStep, isMapOpen, onMapToggle, onNavigate, onNotify }) {
   const menuItems = [
-    ["지역 추천", "home"],
-    ["지역 비교", "recommend"],
+    ["맞춤 분석", "custom-analysis"],
+    ["매물 추천", "property-search"],
+    ["매물 비교", "property-recommendations"],
     ["주거지원 정책", "support"],
     ["생활비 분석", "living-cost"],
     ["서류 검토", "documents"],
-    ["AI 추천", "ai-recommend"],
     ["이용 가이드", "guide"],
     ["고객센터", "customer-center"],
   ];
@@ -38,7 +38,7 @@ function Header({ activeStep, isMapOpen, onMapToggle, onNavigate, onNotify }) {
       <div className="header-actions">
         <button className="login-link" onClick={() => onNavigate("login")}>로그인</button>
         <button className="mypage-link" onClick={() => onNavigate("mypage")}>마이페이지</button>
-        <button className={`header-map-button ${isMapOpen ? "active" : ""}`} type="button" aria-label="지역 비교 지도 보기" aria-pressed={isMapOpen} onClick={onMapToggle}><FaMapMarkedAlt aria-hidden="true" /></button>
+        <button className={`header-map-button ${isMapOpen ? "active" : ""}`} type="button" aria-label="매물 위치 지도 보기" aria-pressed={isMapOpen} onClick={onMapToggle}><FaMapMarkedAlt aria-hidden="true" /></button>
       </div>
     </header>
   );
