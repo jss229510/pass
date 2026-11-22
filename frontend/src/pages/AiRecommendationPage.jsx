@@ -1,124 +1,497 @@
-import React, { useState } from "react";
-import { createPortal } from "react-dom";
-import KakaoMap from "../components/KakaoMap";
-import moveGuide from "../assets/move-guide.png";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import maruImage from "../assets/maru-guide-v2.png";
+import {
+  addAnswer, agencies, answerLabel, areaText, cities, envNames, getQuestion,
+  getRecommendations, isSkipped, marketSample, money, names,
+  noPreference, priceText, pyeong, step, totalSteps,
+} from "../data/maruRecommendation";
+import "./AiRecommendationPage.css";
 
-const starterMessages = [
-  { role: "assistant", text: "안녕하세요. 원하는 지역 안에서 조건에 맞는 매물을 함께 찾아드릴게요. 예산, 통근 위치, 꼭 필요한 생활 조건부터 알려주세요." },
-  { role: "assistant", text: "현재 입력된 조건을 기준으로 대전 유성구, 충남 아산시, 광주 북구의 추천 매물을 비교해 볼 수 있어요." },
-];
+const leafletUrl = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet";
+let leafletPromise;
 
-const quickQuestions = ["유성구 월세 70만원 이하 매물", "재택근무하기 좋은 원룸", "청년 월세 지원 받을 수 있을까?"];
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletPromise) return leafletPromise;
 
-const recommendedRegions = [
-  { name: "대전 유성구", label: "유성구", aliases: ["대전", "유성", "궁동", "봉명동"], score: 89, rent: "월세 55~70만원", reason: "연구단지와 교통, 생활 편의시설의 균형이 좋아요.", listings: [{ title: "궁동 채광 좋은 원룸", rent: "월세 55만원", size: "전용 23㎡", image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=700&q=80" }, { title: "봉명동 역세권 오피스텔", rent: "월세 68만원", size: "전용 28㎡", image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=700&q=80" }] },
-  { name: "충남 아산시", label: "아산시", aliases: ["아산", "천안아산", "배방"], score: 82, rent: "월세 45~60만원", reason: "비교적 낮은 주거비와 수도권 접근성이 강점이에요.", listings: [{ title: "배방 신축 투룸", rent: "월세 52만원", size: "전용 31㎡", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=700&q=80" }, { title: "천안아산역 생활권 원룸", rent: "월세 47만원", size: "전용 21㎡", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=700&q=80" }] },
-  { name: "광주 북구", label: "북구", aliases: ["광주", "북구", "용봉동"], score: 78, rent: "월세 40~58만원", reason: "대학가 생활권과 편의시설을 가까이 이용할 수 있어요.", listings: [{ title: "용봉동 대학가 원룸", rent: "월세 43만원", size: "전용 20㎡", image: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=700&q=80" }, { title: "북구 조용한 오피스텔", rent: "월세 56만원", size: "전용 26㎡", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=700&q=80" }] },
-];
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = leafletUrl + ".css";
+  css.crossOrigin = "anonymous";
+  css.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
+  const script = document.createElement("script");
+  script.src = leafletUrl + ".js";
+  script.crossOrigin = "anonymous";
+  script.integrity = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=";
 
-const findRegionFromText = (text) => recommendedRegions.find((region) => [region.name, region.label, ...region.aliases].some((keyword) => text.includes(keyword)));
-
-const popularNearbyCriteria = ["지하철역", "버스정류장", "편의점", "대형마트", "병원", "약국", "카페", "공원", "행정복지센터", "주차장"];
-const listingNamesByRegion = {
-  "대전 유성구": ["궁동 한빛빌 203호 원룸", "봉명동 센트럴파크 오피스텔", "죽동 아이파크 인근 투룸", "노은동 그린타운 원룸", "장대동 드림하우스 투룸"],
-  "충남 아산시": ["배방읍 더샵빌 302호 원룸", "탕정역 센트럴 오피스텔", "모종동 해든빌 투룸", "온양온천역 로얄빌 원룸", "신창면 라온하우스 투룸"],
-  "광주 북구": ["용봉동 캠퍼스빌 205호 원룸", "중흥동 센트럴 오피스텔", "두암동 해피빌 투룸", "일곡동 그린하우스 원룸", "매곡동 포레스트빌 투룸"],
-};
-const travelModes = [
-  { label: "도보", icon: "🚶" },
-  { label: "대중교통", icon: "🚌" },
-  { label: "자동차", icon: "🚗" },
-];
-
-function AiRecommendationPage({ budget, onBack, onPropertyRecommendations }) {
-  const [messages, setMessages] = useState(starterMessages);
-  const [input, setInput] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState(recommendedRegions[0]);
-  const [places, setPlaces] = useState([]);
-  const [isLeftOpen, setIsLeftOpen] = useState(true);
-  const [isRightOpen, setIsRightOpen] = useState(true);
-  const [isGuideOpen, setIsGuideOpen] = useState(true);
-  const [roadviewRequest, setRoadviewRequest] = useState(0);
-  const [locationQuery, setLocationQuery] = useState("");
-  const [selectedListing, setSelectedListing] = useState(null);
-  const [selectedTravelMode, setSelectedTravelMode] = useState("도보");
-  const [routeTarget, setRouteTarget] = useState(null);
-  const latestGuideMessage = [...messages].reverse().find((message) => message.role === "assistant")?.text;
-  const nearbyFacilities = popularNearbyCriteria.map((criterion, index) => ({
-    criterion,
-    placeType: criterion.includes("역") ? "교통 · 역" : criterion.includes("정류장") ? "교통 · 정류장" : "생활 · 시설",
-    distance: `${(index + 1) * 120}m`,
-    rank: index + 1,
-  }));
-  const rankedListings = Array.from({ length: 5 }, (_, index) => {
-    const source = selectedRegion.listings[index % selectedRegion.listings.length];
-    return {
-      ...source,
-      id: `${selectedRegion.name}-${index + 1}`,
-      title: listingNamesByRegion[selectedRegion.name][index],
-      score: Math.max(selectedRegion.score - index * 3, 70),
+  leafletPromise = new Promise((resolve, reject) => {
+    script.onload = () => resolve(window.L);
+    script.onerror = () => {
+      script.remove();
+      css.remove();
+      leafletPromise = undefined;
+      reject(new Error("지도 모듈을 불러올 수 없어요."));
     };
+    document.head.append(css, script);
   });
-
-  const sendMessage = (message = input) => {
-    const trimmedMessage = message.trim();
-    if (!trimmedMessage) return;
-
-    const matchedRegion = findRegionFromText(trimmedMessage);
-    if (matchedRegion) setSelectedRegion(matchedRegion);
-
-    setMessages((items) => [
-      ...items,
-      { role: "user", text: trimmedMessage },
-      { role: "assistant", text: matchedRegion ? `${matchedRegion.name} 주변으로 지도를 이동했어요. ${matchedRegion.listings.length}개의 데모 매물을 오른쪽에서 확인해 보세요.` : `입력해 주신 “${trimmedMessage}” 조건을 반영해 볼게요. 지역명(대전 유성구, 아산시, 광주 북구)을 함께 말하면 지도를 바로 이동할 수 있어요.` },
-    ]);
-    setInput("");
-  };
-
-  const searchLocation = (event) => {
-    event.preventDefault();
-    const matchedRegion = findRegionFromText(locationQuery.trim());
-    if (!matchedRegion) {
-      setMessages((items) => [...items, { role: "assistant", text: "현재 데모에서는 대전 유성구, 충남 아산시, 광주 북구를 검색할 수 있어요." }]);
-      return;
-    }
-    setSelectedRegion(matchedRegion);
-    setMessages((items) => [...items, { role: "assistant", text: `${matchedRegion.name} 주변 매물과 생활 시설을 지도에 표시했어요.` }]);
-  };
-
-  return (
-    <section className="ai-recommendation-page">
-      <style>{`
-        .ai-recommendation-page{width:100%;max-width:1540px;margin:0 auto;color:#18352e}.ai-recommendation-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:24px}.ai-recommendation-kicker{margin:0 0 8px;color:#008b70;font-size:14px;font-weight:900;letter-spacing:.08em}.ai-recommendation-head h1{margin:0;font-size:clamp(32px,3vw,48px);letter-spacing:-.07em}.ai-recommendation-head h1 b{color:#008b70}.ai-recommendation-head p{margin:12px 0 0;color:#688078;font-size:15px}.ai-back-button{padding:11px 16px;border:1px solid #a5d5c8;border-radius:8px;background:#fff;color:#087e68;font-weight:800;white-space:nowrap}.ai-layout{display:grid;grid-template-columns:310px minmax(0,1fr);min-height:590px;border:1px solid #d8e9e3;border-radius:18px;background:#fff;overflow:hidden}.ai-context{padding:26px;border-right:1px solid #dcebe6;background:linear-gradient(160deg,#f5fcf9,#e7f7f0)}.ai-context-logo{display:grid;place-items:center;width:45px;height:45px;border-radius:13px;background:#008b70;color:#fff;font-size:21px;font-weight:900}.ai-context h2{margin:18px 0 8px;font-size:22px}.ai-context>p{margin:0;color:#617b73;font-size:13px;line-height:1.6}.ai-profile{margin-top:24px;padding:18px;border:1px solid #cee7de;border-radius:13px;background:#fff}.ai-profile span{display:block;color:#79938b;font-size:11px}.ai-profile b{display:block;margin-top:6px;font-size:15px}.ai-profile ul{display:grid;gap:9px;margin:15px 0 0;padding:0;list-style:none}.ai-profile li{display:flex;justify-content:space-between;color:#607a72;font-size:12px}.ai-profile li strong{color:#1f4a40}.ai-tips{margin-top:22px}.ai-tips h3{margin:0 0 11px;font-size:14px}.ai-tips button{display:block;width:100%;margin-top:8px;padding:11px;border:1px solid #cce5dc;border-radius:8px;background:#fff;color:#397165;text-align:left;font-size:12px}.ai-chat{display:flex;min-width:0;flex-direction:column;background:#fff}.ai-chat-header{display:flex;justify-content:space-between;align-items:center;padding:21px 25px;border-bottom:1px solid #e2eeea}.ai-chat-header b{font-size:17px}.ai-status{display:flex;align-items:center;gap:7px;color:#168a73;font-size:12px;font-weight:800}.ai-status i{width:8px;height:8px;border-radius:50%;background:#19a885}.ai-message-list{display:flex;flex:1;flex-direction:column;gap:14px;min-height:0;overflow:auto;padding:27px}.ai-message{display:flex;gap:10px;max-width:min(78%,650px)}.ai-message.user{align-self:flex-end;flex-direction:row-reverse}.ai-avatar{display:grid;place-items:center;width:31px;height:31px;flex:none;border-radius:10px;background:#e4f6ef;color:#008b70;font-size:14px;font-weight:900}.ai-message.user .ai-avatar{background:#e8eef0;color:#54706a}.ai-bubble{padding:13px 15px;border-radius:4px 14px 14px 14px;background:#f1faf6;color:#31564d;font-size:14px;line-height:1.6}.ai-message.user .ai-bubble{border-radius:14px 4px 14px 14px;background:#008b70;color:#fff}.ai-composer{padding:18px 25px 23px;border-top:1px solid #e2eeea}.ai-composer form{display:flex;gap:10px;padding:8px 8px 8px 15px;border:1px solid #b9dbd0;border-radius:11px;background:#fff}.ai-composer input{min-width:0;flex:1;border:0;outline:0;color:#24463d;font-size:14px}.ai-composer button{width:42px;height:42px;border:0;border-radius:8px;background:#008b70;color:#fff;font-size:18px}.ai-composer small{display:block;margin-top:10px;color:#82978f;font-size:11px}@media(max-width:900px){.ai-layout{grid-template-columns:1fr}.ai-context{border-right:0;border-bottom:1px solid #dcebe6}.ai-profile,.ai-tips{display:none}.ai-chat{min-height:540px}}@media(max-width:700px){.ai-recommendation-head{display:block}.ai-back-button{margin-top:15px}.ai-layout{margin:0 -2px;border-radius:13px}.ai-context{padding:20px}.ai-context h2{margin-top:10px}.ai-message-list{padding:20px}.ai-message{max-width:90%}.ai-composer{padding:14px}.ai-recommendation-head h1{font-size:34px}}
-      `}</style>
-      <style>{`.ai-recommendation-page{position:relative;isolation:isolate;max-width:none;min-height:calc(100dvh - 160px);margin:-42px clamp(-170px,-8vw,-36px);padding:0;overflow:hidden;background:#eaf4f0}.ai-map-background{position:absolute;z-index:-2;inset:0}.ai-map-background .kakao-map-canvas,.ai-map-background .kakao-map-error{height:100%;border-radius:0}.ai-recommendation-page:after{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(90deg,#eaf4f0bb,transparent 34%,transparent 66%,#eaf4f0bb);pointer-events:none}.ai-recommendation-head{position:relative;z-index:1;align-items:center;margin:0;padding:18px clamp(24px,4vw,62px);background:#fffffff0;border-bottom:1px solid #dcebe5;backdrop-filter:blur(12px)}.ai-recommendation-head h1{font-size:25px}.ai-recommendation-head p{display:none}.ai-recommendation-kicker{margin:0;color:#008b70;font-size:11px}.ai-layout{grid-template-columns:280px minmax(360px,1fr) 310px;gap:18px;height:auto;min-height:600px;margin:22px clamp(18px,3vw,42px) 30px;border:0;border-radius:0;background:transparent;overflow:visible}.ai-context,.ai-chat,.ai-region-results{border:1px solid #d8e9e3;border-radius:20px;background:#fffffff0;box-shadow:0 16px 38px #183e3220;backdrop-filter:blur(12px)}.ai-context{padding:22px;border:1px solid #d8e9e3}.ai-context h2{font-size:19px}.ai-context-logo{background:#008b70}.ai-chat{overflow:hidden}.ai-chat-header{padding:17px 20px}.ai-message-list{height:315px;padding:20px}.ai-composer{padding:14px}.ai-region-results{padding:20px}.ai-region-results h2{margin:0;font-size:20px}.ai-region-results>p{margin:8px 0 14px;color:#71877f;font-size:12px;line-height:1.5}.ai-region-tabs{display:flex;gap:5px;margin-bottom:13px}.ai-region-tabs button{flex:1;padding:9px 4px;border:1px solid #d7e8e2;border-radius:9px;background:#fff;color:#627d73;font-size:11px;font-weight:800}.ai-region-tabs button.active{border-color:#0a987e;background:#0a987e;color:#fff}.ai-region-card{overflow:hidden;border:1px solid #dbeae5;border-radius:14px;background:#fff}.ai-region-map{height:105px;padding:13px;background:linear-gradient(135deg,#d7ede3,#b4decf 48%,#e5f0c7);color:#087d67;font-size:12px;font-weight:900}.ai-region-card-body{padding:15px}.ai-region-card-body small{display:inline-block;padding:5px 7px;border-radius:6px;background:#e6f8f2;color:#0c9177;font-size:10px;font-weight:900}.ai-region-card-body h3{margin:9px 0 5px;font-size:16px}.ai-region-card-body p{margin:0;color:#6a827a;font-size:11px;line-height:1.5}.ai-region-rent{display:flex;justify-content:space-between;margin-top:12px;padding-top:11px;border-top:1px solid #e8f0ed;font-size:12px;font-weight:900}.ai-region-rent b{color:#168b75}.ai-map-places{margin-top:14px;padding-top:13px;border-top:1px solid #e1ece8;font-size:12px}.ai-map-places div{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.ai-map-places span{padding:5px 7px;border-radius:999px;background:#f0f7f4;color:#59746b;font-size:10px}@media(max-width:1050px){.ai-layout{grid-template-columns:280px 1fr}.ai-region-results{grid-column:2}.ai-region-results{max-width:360px}.ai-recommendation-page{min-height:100vh}}@media(max-width:760px){.ai-recommendation-page{margin:-24px -24px}.ai-recommendation-head{padding:14px 20px}.ai-recommendation-head h1{font-size:21px}.ai-layout{display:flex;flex-direction:column;margin:14px}.ai-context,.ai-chat,.ai-region-results{width:100%}.ai-message-list{height:230px}.ai-region-results{max-width:none}.ai-profile,.ai-tips{display:block}.ai-context{padding:18px}.ai-recommendation-head .ai-back-button{margin:0}.ai-recommendation-kicker{display:none}}`}</style>
-      <style>{`.ai-layout{grid-template-columns:280px minmax(0,1fr) 310px;align-items:end}.ai-guide-dialogue{display:flex;align-items:end;align-self:end;min-height:480px;gap:10px;padding:16px 10px 0}.ai-guide-character{width:clamp(160px,20vw,275px);height:auto;flex:none;filter:drop-shadow(0 15px 15px #153c302c);animation:guide-enter .45s ease-out}.ai-guide-card{width:min(430px,100%);margin-bottom:35px;overflow:hidden;border:1px solid #d5e8e1;border-radius:20px;background:#fffffff5;box-shadow:0 16px 38px #183e3224;backdrop-filter:blur(12px)}.ai-guide-head{display:flex;justify-content:space-between;align-items:center;padding:15px 17px;border-bottom:1px solid #e1eeea}.ai-guide-head b{font-size:15px}.ai-guide-head span{color:#098a72;font-size:11px;font-weight:900}.ai-guide-text{min-height:86px;margin:16px;padding:14px 15px;border-radius:6px 14px 14px;background:#edf9f5;color:#416259;font-size:13px;line-height:1.55}.ai-guide-choices{display:flex;gap:7px;flex-wrap:wrap;padding:0 16px 14px}.ai-guide-choices button{padding:8px 10px;border:1px solid #bae1d5;border-radius:999px;background:#fff;color:#16826d;font-size:11px;font-weight:800}.ai-guide-form{display:flex;gap:7px;margin:0;padding:10px;border-top:1px solid #e1eeea;background:#fff}.ai-guide-form input{min-width:0;flex:1;height:40px;padding:0 11px;border:1px solid #c7e1d8;border-radius:9px;color:#315349;font-size:12px}.ai-guide-form button{padding:0 12px;border:0;border-radius:9px;background:#14947d;color:#fff;font-size:12px;font-weight:900}.ai-guide-note{margin:0;padding:0 16px 13px;color:#789188;font-size:10px;line-height:1.5}@keyframes guide-enter{from{opacity:0;transform:translateY(24px) scale(.95)}to{opacity:1;transform:none}}@media(max-width:1050px){.ai-layout{grid-template-columns:280px 1fr}.ai-guide-dialogue{min-height:430px}.ai-region-results{grid-column:2}}@media(max-width:760px){.ai-guide-dialogue{width:100%;min-height:0;padding:0;gap:0}.ai-guide-character{width:110px;margin-right:-16px;align-self:flex-end}.ai-guide-card{margin:0 0 12px;border-radius:17px}.ai-guide-text{min-height:78px;margin:12px;font-size:12px}.ai-guide-choices{padding:0 12px 12px}.ai-guide-form{padding:8px}.ai-guide-note{padding:0 12px 10px}.ai-layout{align-items:stretch}}`}</style>
-      <style>{`.ai-recommendation-page{width:100vw;height:calc(100dvh - 76px);min-height:620px;margin:-42px 0 -42px calc(50% - 50vw)}.ai-map-background{right:20px;left:20px}.ai-layout{height:100%;min-height:0;margin:0 20px;gap:18px}.ai-context,.ai-region-results{height:100%;border-radius:20px}.ai-guide-dialogue{height:100%;min-height:0;padding:0 10px 5px}.ai-guide-card{margin-bottom:0}@media(max-width:760px){.ai-recommendation-page{width:100vw;height:auto;min-height:calc(100dvh - 56px);margin:-24px 0 -24px calc(50% - 50vw)}.ai-map-background{right:0;left:0}.ai-layout{height:auto;margin:14px}.ai-context,.ai-region-results{height:auto}.ai-guide-dialogue{height:auto;padding:0}}`}</style>
-      <style>{`.ai-map-background{z-index:0;pointer-events:auto}.ai-layout{position:relative;z-index:1;pointer-events:none}.ai-context,.ai-region-results,.ai-guide-dialogue{pointer-events:auto}.panel-closed{visibility:hidden!important;opacity:0;pointer-events:none}.ai-map-controls{position:absolute;z-index:2;top:14px;left:50%;display:flex;gap:7px;transform:translateX(-50%)}.ai-map-controls button{border:1px solid #b9ddd2;border-radius:9px;padding:9px 11px;background:#fffffff2;color:#087e68;font-size:12px;font-weight:900;box-shadow:0 5px 12px #143d3326}.ai-map-controls button.active{border-color:#008b70;background:#008b70;color:#fff}@media(max-width:760px){.ai-map-controls{top:10px;gap:4px}.ai-map-controls button{padding:7px 8px;font-size:10px}}`}</style>
-      <style>{`.ai-context .ai-profile,.ai-context .ai-tips{display:none}.ai-location-search{position:absolute;z-index:2;top:160px;left:22px;display:grid;gap:8px;width:236px;pointer-events:auto}.ai-location-search label{color:#385c51;font-size:12px;font-weight:900}.ai-location-search div{display:flex;gap:6px}.ai-location-search input{min-width:0;flex:1;height:39px;padding:0 10px;border:1px solid #bfe0d6;border-radius:8px;background:#fff;color:#31564d;font-size:11px}.ai-location-search button{border:0;border-radius:8px;padding:0 10px;background:#008b70;color:#fff;font-size:11px;font-weight:900}.ai-region-card,.ai-map-places{display:none}.ai-listing-gallery{position:absolute;z-index:2;top:126px;right:0;width:310px;display:grid;gap:10px;padding:0 20px;pointer-events:auto}.ai-listing-gallery article{overflow:hidden;border:1px solid #d9eae4;border-radius:12px;background:#fff}.ai-listing-gallery img{display:block;width:100%;height:108px;object-fit:cover}.ai-listing-gallery div{padding:10px 11px}.ai-listing-gallery b{display:block;font-size:13px}.ai-listing-gallery span{display:block;margin-top:5px;color:#527268;font-size:11px}.ai-listing-gallery strong{display:block;margin-top:7px;color:#008b70;font-size:12px}@media(max-width:1050px){.ai-listing-gallery{right:0}}@media(max-width:760px){.ai-location-search,.ai-listing-gallery{position:static;width:auto;padding:0;margin:12px}.ai-listing-gallery{margin-top:-250px}.ai-context .ai-profile,.ai-context .ai-tips{display:none}}`}</style>
-      <style>{`.ai-nearby-list{position:absolute;z-index:2;top:230px;left:22px;width:236px;pointer-events:auto}.ai-nearby-list h3{margin:0 0 8px;color:#385c51;font-size:12px}.ai-nearby-list p{margin:0 0 8px;color:#71877f;font-size:10px}.ai-nearby-list ol{display:grid;gap:4px;margin:0;padding:0;list-style:none}.ai-nearby-list li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:6px;align-items:center;padding:6px 7px;border:1px solid #deece7;border-radius:7px;background:#fffffff0;color:#416259;font-size:10px}.ai-nearby-list li b{color:#008b70}.ai-nearby-list li span:last-child{color:#769087;font-size:9px}.ai-listing-gallery article{cursor:pointer}.ai-listing-gallery article:hover{border-color:#53bda8;box-shadow:0 6px 14px #008b701c}.ai-listing-modal{position:fixed;z-index:20;inset:0;display:grid;place-items:center;padding:24px;background:#123c3280;pointer-events:auto}.ai-listing-modal-card{position:relative;width:min(92vw,760px);overflow:hidden;border-radius:18px;background:#fff;box-shadow:0 24px 60px #092e253d}.ai-listing-modal-card img{display:block;width:100%;max-height:65dvh;object-fit:cover}.ai-listing-modal-card div{padding:18px}.ai-listing-modal-card h2{margin:0;font-size:21px}.ai-listing-modal-card p{margin:7px 0 0;color:#688078;font-size:13px}.ai-listing-modal-card button{position:absolute;top:12px;right:12px;width:34px;height:34px;border:0;border-radius:50%;background:#fffffff2;color:#23463d;font-size:19px}@media(max-width:760px){.ai-nearby-list{position:static;width:auto;margin:12px}.ai-listing-modal{padding:16px}}`}</style>
-      <style>{`.ai-layout{grid-template-columns:330px minmax(0,1fr) 330px}.ai-context{padding:24px}.ai-context h2{font-size:22px}.ai-context>p{font-size:14px;line-height:1.65}.ai-location-search,.ai-nearby-list{left:24px;width:282px}.ai-location-search label,.ai-nearby-list h3{font-size:14px}.ai-location-search input{height:43px;font-size:12px}.ai-location-search button{font-size:12px}.ai-nearby-list{top:238px}.ai-nearby-list p{font-size:11px}.ai-nearby-list li{grid-template-columns:24px minmax(0,1fr) auto;padding:8px;font-size:11px}.ai-nearby-list li span:last-child{font-size:10px}.ai-region-tabs{margin-bottom:24px}.ai-listing-gallery{top:158px;right:0;bottom:18px;width:330px;max-height:none;overflow-y:auto;padding:0 20px 4px}.ai-listing-gallery img{height:82px}.ai-listing-gallery article{position:relative}.ai-listing-gallery-score{position:absolute;top:8px;right:8px;padding:5px 7px;border-radius:7px;background:#008b70;color:#fff;font-size:10px;font-weight:900}.ai-listing-gallery div{padding:9px 11px}.ai-listing-gallery strong{margin-top:5px}.ai-listing-modal{z-index:1000}@media(max-width:1050px){.ai-layout{grid-template-columns:330px minmax(0,1fr)}.ai-region-results{max-width:330px}.ai-listing-gallery{width:330px}}@media(max-width:760px){.ai-layout{grid-template-columns:1fr}.ai-location-search,.ai-nearby-list{width:auto}.ai-listing-gallery{width:auto;max-height:480px}}`}</style>
-      <style>{`.ai-context>p{max-width:270px;margin-top:7px!important;font-size:13px!important;line-height:1.55!important}.ai-location-search{top:190px}.ai-nearby-list{top:274px}.ai-nearby-list li{padding:0;border:0;background:transparent}.ai-nearby-list button{display:grid;width:100%;grid-template-columns:24px minmax(0,1fr) auto;gap:6px;align-items:center;padding:8px;border:1px solid #deece7;border-radius:7px;background:#fffffff0;color:#416259;text-align:left;font-size:11px}.ai-nearby-list button:hover,.ai-nearby-list button.active{border-color:#53bda8;background:#effaf6}.ai-nearby-list button b{color:#008b70}.ai-nearby-list button span:last-child{color:#769087;font-size:10px}.ai-commute-sheet{position:absolute;z-index:3;top:274px;left:346px;width:220px;padding:15px;border:1px solid #9bd7c8;border-radius:14px;background:#fffffff5;box-shadow:0 14px 28px #143d332b;pointer-events:auto;animation:commute-slide .18s ease-out}.ai-commute-sheet:before{content:"";position:absolute;top:24px;left:-7px;width:13px;height:13px;background:#fff;transform:rotate(45deg);border-bottom:1px solid #9bd7c8;border-left:1px solid #9bd7c8}.ai-commute-sheet header{position:relative;display:flex;justify-content:space-between;gap:8px;align-items:start}.ai-commute-sheet h3{margin:0;font-size:14px}.ai-commute-sheet p{margin:5px 0 12px;color:#6b837a;font-size:11px}.ai-commute-sheet header button{border:0;background:transparent;color:#56736a;font-size:17px}.ai-commute-options{display:grid;gap:7px}.ai-commute-options div{display:flex;justify-content:space-between;align-items:center;padding:9px;border-radius:8px;background:#eff9f5;color:#416259;font-size:12px}.ai-commute-options b{color:#008b70}@keyframes commute-slide{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}.ai-region-results{overflow:hidden}.ai-region-tabs{margin-bottom:28px}.ai-listing-gallery{top:180px;right:0;bottom:18px;width:330px;padding:0 20px 10px;overflow-y:auto;scrollbar-gutter:stable}.ai-listing-gallery article{min-height:132px}.ai-listing-gallery img{height:86px}.ai-listing-gallery div{padding:10px 11px}.ai-listing-gallery b{font-size:13px;line-height:1.35}.ai-listing-gallery span{margin-top:3px}.ai-listing-gallery strong{margin-top:5px}@media(max-width:1050px){.ai-commute-sheet{left:346px}}@media(max-width:760px){.ai-location-search{top:auto}.ai-nearby-list{top:auto}.ai-commute-sheet{position:static;width:auto;margin:12px;animation:none}.ai-commute-sheet:before{display:none}.ai-listing-gallery{top:auto;bottom:auto}}`}</style>
-      <style>{`.ai-travel-mode{position:absolute;z-index:2;top:270px;left:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px;width:282px;pointer-events:auto}.ai-travel-mode button{display:grid;place-items:center;gap:3px;min-height:48px;border:1px solid #cce5dc;border-radius:9px;background:#fff;color:#416259;font-size:11px;font-weight:800}.ai-travel-mode button span:first-child{font-size:18px}.ai-nearby-list{top:342px}.ai-nearby-list h3{margin-bottom:7px}.ai-nearby-list p{margin-bottom:9px;font-size:11px}.ai-nearby-list ol{gap:6px}.ai-nearby-list li{height:37px}.ai-nearby-list button{grid-template-columns:31px minmax(0,1fr) 52px;height:37px;padding:7px 9px;border-radius:8px;font-size:12px;line-height:1;white-space:nowrap}.ai-nearby-list button b{font-size:12px}.ai-nearby-list button span:nth-child(2){overflow:hidden;text-overflow:ellipsis}.ai-nearby-list button span:last-child{justify-self:end;font-size:11px}.ai-commute-sheet{display:none!important}@media(max-width:760px){.ai-travel-mode{position:static;width:auto;margin:12px}.ai-nearby-list{top:auto}}`}</style>
-      <style>{`.ai-travel-mode button.active{border-color:#008b70;background:#008b70;color:#fff;box-shadow:0 5px 12px #008b7030}.ai-nearby-list li{height:43px}.ai-nearby-list button{grid-template-columns:30px minmax(0,1fr) 54px;height:43px;padding:6px 8px}.ai-nearby-list button.active{border-color:#008b70;background:#effaf6}.ai-facility-meta{display:grid;gap:3px;min-width:0}.ai-facility-meta strong{overflow:hidden;color:#35584d;font-size:11px;line-height:1;text-overflow:ellipsis;white-space:nowrap}.ai-facility-meta small{color:#768e85;font-size:9px;line-height:1}.ai-nearby-list button span:last-child{font-size:11px;font-weight:900}@media(max-width:760px){.ai-nearby-list li,.ai-nearby-list button{height:42px}}`}</style>
-      <style>{`.ai-guide-dialogue{pointer-events:none}.ai-guide-character,.ai-guide-card{pointer-events:auto}.ai-region-results{height:calc(100% + 12px);margin-top:-6px;margin-bottom:-6px}.ai-listing-gallery{top:165px;bottom:8px}.ai-listing-gallery img{height:94px}.ai-listing-gallery-score{position:static;flex:none;padding:4px 6px;font-size:10px}.ai-listing-title{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:0!important}.ai-listing-gallery div:not(.ai-listing-title){padding-top:7px}@media(max-width:760px){.ai-region-results{height:auto;margin:0}.ai-listing-gallery{top:auto;bottom:auto}}`}</style>
-      <style>{`.ai-listing-title{display:block!important}.ai-listing-title b{display:block;overflow:hidden;font-size:14px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}.ai-listing-gallery-score{display:none}.ai-listing-info{display:block!important;margin-top:6px!important;color:#638077!important;font-size:11px!important;font-weight:700}.ai-listing-gallery strong{display:none!important}`}</style>
-      <style>{`.ai-nearby-list{top:336px}.ai-nearby-list ol{max-height:calc(100dvh - 520px);padding-right:3px;overflow-y:auto}.ai-nearby-list li,.ai-nearby-list button{height:50px}.ai-nearby-list button{grid-template-columns:30px minmax(0,1fr) 56px;padding:7px 9px}.ai-facility-meta{display:flex!important;flex-direction:column!important;justify-content:center!important;gap:5px!important;overflow:hidden!important}.ai-facility-meta strong{display:block!important;overflow:hidden!important;color:#294b40!important;font-size:12px!important;line-height:1.1!important;text-overflow:ellipsis!important;white-space:nowrap!important}.ai-facility-meta small{display:block!important;overflow:hidden!important;color:#718b81!important;font-size:10px!important;line-height:1!important;text-overflow:ellipsis!important;white-space:nowrap!important}.ai-nearby-list button>span:last-child{display:block!important;color:#008b70!important;font-size:11px!important;font-weight:900!important;text-align:right!important}.ai-listing-gallery article{min-height:154px}.ai-listing-gallery img{height:94px}.ai-listing-gallery article>div:last-child{padding:10px 11px 14px!important}.ai-listing-info{display:block!important;min-height:15px!important;overflow:visible!important;white-space:nowrap!important}@media(max-width:760px){.ai-nearby-list ol{max-height:440px}.ai-nearby-list li,.ai-nearby-list button{height:48px}}`}</style>
-      <style>{`.ai-nearby-list li{display:block!important;width:100%!important}.ai-nearby-list button{width:100%!important}.ai-nearby-list button>.ai-facility-meta{display:flex!important;flex-direction:column!important;justify-content:center!important;gap:5px!important;min-width:0!important;overflow:hidden!important;visibility:visible!important;opacity:1!important}.ai-nearby-list button>.ai-facility-meta strong{display:block!important;color:#21483c!important;font-size:12px!important;font-weight:900!important;line-height:1.15!important;white-space:nowrap!important}.ai-nearby-list button>.ai-facility-meta small{display:block!important;color:#668177!important;font-size:10px!important;font-weight:700!important;line-height:1!important;white-space:nowrap!important}.ai-nearby-list button>span:last-child{display:block!important;visibility:visible!important}.ai-listing-modal-card .ai-listing-action{position:static;width:100%;height:44px;margin-top:14px;border-radius:10px;background:#008b70;color:#fff;font-size:13px;font-weight:900}`}</style>
-      <div className="ai-map-background"><KakaoMap regionName={selectedRegion.name} categoryId="overview" searchQuery={`${selectedRegion.name} 주요 시설`} onPlacesChange={setPlaces} roadviewRequest={roadviewRequest} routeTarget={routeTarget} /></div>
-      <div className="ai-map-controls" aria-label="지도 화면 제어"><button type="button" className={isLeftOpen ? "active" : ""} onClick={() => setIsLeftOpen((open) => !open)}>조건</button><button type="button" className={isGuideOpen ? "active" : ""} onClick={() => setIsGuideOpen((open) => !open)}>마루</button><button type="button" className={isRightOpen ? "active" : ""} onClick={() => setIsRightOpen((open) => !open)}>추천</button><button type="button" onClick={() => setRoadviewRequest((count) => count + 1)}>로드뷰</button></div>
-      <div className="ai-layout">
-        <aside className={`ai-context ${isLeftOpen ? "" : "panel-closed"}`}><div className="ai-context-logo">AI</div><h2>맞춤 매물 분석</h2><p>예산, 통근, 생활 환경, 청년 지원 조건을 바탕으로 매물을 비교해 보세요.</p><section className="ai-profile"><span>현재 반영한 조건</span><b>청년 1인 가구</b><ul><li><span>월세 예산</span><strong>{budget}만원 이하</strong></li><li><span>탐색 범위</span><strong>희망 지역 내 매물</strong></li><li><span>우선 조건</span><strong>주거비 · 교통</strong></li></ul></section><section className="ai-tips"><h3>이렇게 물어보세요</h3>{quickQuestions.map((question) => <button type="button" key={question} onClick={() => sendMessage(question)}>{question}</button>)}</section></aside>
-        <section className={`ai-guide-dialogue ${isGuideOpen ? "" : "panel-closed"}`} aria-label="마루와 이사 조건 대화"><img className="ai-guide-character" src={moveGuide} alt="지도를 들고 안내하는 캐릭터 마루" /><div className="ai-guide-card"><header className="ai-guide-head"><b>마루와 이사 조건 대화</b><span>● 상담 준비 완료</span></header><p className="ai-guide-text">{latestGuideMessage}</p><div className="ai-guide-choices">{quickQuestions.map((question) => <button type="button" key={question} onClick={() => sendMessage(question)}>{question}</button>)}</div><form className="ai-guide-form" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}><input value={input} onChange={(event) => setInput(event.target.value)} placeholder="예: 월세 60만원 이하, 역과 가까운 곳" aria-label="이사 조건 입력" /><button type="submit">전송</button></form><p className="ai-guide-note">현재는 데모 응답입니다. 실제 서비스에서는 공공 주거·교통·생활 데이터와 연결됩니다.</p></div></section>
-        <aside className={`ai-region-results ${isRightOpen ? "" : "panel-closed"}`}><h2>추천 매물</h2><p>희망 지역을 선택하면 조건에 맞는 매물을 볼 수 있어요.</p><div className="ai-region-tabs">{recommendedRegions.map((region) => <button type="button" className={region.name === selectedRegion.name ? "active" : ""} key={region.name} onClick={() => setSelectedRegion(region)}>{region.label}</button>)}</div><article className="ai-region-card"><div className="ai-region-map">{selectedRegion.label} · Kakao Map</div><div className="ai-region-card-body"><small>조건에 잘 맞아요</small><h3>{selectedRegion.name} 추천 매물</h3><p>{selectedRegion.reason}</p><div className="ai-region-rent"><span>{selectedRegion.rent}</span><b>매물 보기 ↗</b></div></div></article><div className="ai-map-places"><b>{selectedRegion.label} 주변 장소</b><div>{places.slice(0, 3).map((place) => <span key={place}>{place}</span>)}</div></div></aside>
-        {isLeftOpen && <form className="ai-location-search" onSubmit={searchLocation}><label htmlFor="location-search">어디에서 살고 싶으세요?</label><div><input id="location-search" value={locationQuery} onChange={(event) => setLocationQuery(event.target.value)} placeholder="예: 유성구, 아산시" /><button type="submit">검색</button></div></form>}
-        {isLeftOpen && <div className="ai-travel-mode" aria-label="이동 수단 기준">{travelModes.map((mode) => <button type="button" className={selectedTravelMode === mode.label ? "active" : ""} key={mode.label} onClick={() => setSelectedTravelMode(mode.label)}><span>{mode.icon}</span><span>{mode.label}</span></button>)}</div>}
-        {isLeftOpen && <section className="ai-nearby-list" aria-label={`${selectedRegion.label} 인기 주변 검색`}><h3>{selectedRegion.label} 인기 주변 검색</h3><p>이동 수단을 고른 뒤 장소를 누르면 지도에 경로가 표시돼요.</p><ol>{nearbyFacilities.map((facility) => <li key={facility.criterion}><button type="button" className={routeTarget?.criterion === facility.criterion ? "active" : ""} onClick={() => setRouteTarget({ ...facility, mode: selectedTravelMode, regionName: selectedRegion.name })}><b>{facility.rank}</b><div className="ai-facility-meta"><strong>{selectedRegion.label} {facility.criterion}</strong><small>{facility.placeType}</small></div><span>{facility.distance}</span></button></li>)}</ol></section>}
-        {isRightOpen && <section className="ai-listing-gallery" aria-label={`${selectedRegion.label} 조건 적합 상위 매물`}>{rankedListings.map((listing) => <article key={listing.id} role="button" tabIndex={0} onClick={() => setSelectedListing(listing)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedListing(listing); }}><img src={listing.image} alt={`${listing.title} 매물 사진`} /><div><div className="ai-listing-title"><b>{listing.title}</b></div><span className="ai-listing-info">{listing.size} · {listing.rent} · 조건 적합 {listing.score}점</span></div></article>)}</section>}
-        {selectedListing && createPortal(<div className="ai-listing-modal" role="dialog" aria-modal="true" aria-label={`${selectedListing.title} 사진 크게 보기`} onClick={() => setSelectedListing(null)}><section className="ai-listing-modal-card" onClick={(event) => event.stopPropagation()}><button type="button" onClick={() => setSelectedListing(null)} aria-label="매물 사진 닫기">×</button><img src={selectedListing.image} alt={`${selectedListing.title} 큰 사진`} /><div><h2>{selectedListing.title}</h2><p>{selectedListing.size} · {selectedListing.rent} · 조건 적합 {selectedListing.score}점</p><button className="ai-listing-action" type="button" onClick={onPropertyRecommendations}>추천 매물 전체 비교</button></div></section></div>, document.body)}
-      </div>
-    </section>
-  );
+  return leafletPromise;
 }
 
-export default AiRecommendationPage;
+function mapLabel(text, className) {
+  const label = document.createElement("span");
+  label.textContent = text;
+  label.className = className;
+  return label;
+}
+
+function positionPriceCards(map, markers) {
+  const size = map.getSize();
+  const placed = [];
+  for (const marker of markers) {
+    const card = marker.getElement()?.querySelector(".maru-pin");
+    if (!card) continue;
+    const { x, y } = map.latLngToContainerPoint(marker.getLatLng());
+    if (x < 0 || x > size.x || y < 0 || y > size.y) {
+      card.style.translate = "";
+      continue;
+    }
+    const width = card.offsetWidth;
+    const height = card.offsetHeight;
+    const left = x - width / 2;
+    const top = y - height;
+    const limitX = value => Math.max(4, Math.min(value, size.x - width - 4));
+    const limitY = value => Math.max(52, Math.min(value, size.y - height - 22));
+    const xs = [left, ...placed.flatMap(box => [box.x - width - 6, box.right + 6])];
+    const ys = [top, ...placed.flatMap(box => [box.y - height - 6, box.bottom + 6])];
+    const positions = xs.flatMap(px => ys.map(py => ({ x: limitX(px), y: limitY(py) })));
+    const position = positions
+      .filter(p => placed.every(box => p.x + width + 3 <= box.x || p.x >= box.right + 3
+        || p.y + height + 3 <= box.y || p.y >= box.bottom + 3))
+      .sort((a, b) => Math.hypot(a.x - left, a.y - top) - Math.hypot(b.x - left, b.y - top))[0]
+      ?? positions[0];
+    placed.push({ ...position, right: position.x + width, bottom: position.y + height });
+    card.style.translate = (position.x - left) + "px " + (position.y - top) + "px";
+  }
+}
+
+function MaruMap({ answers, rows, selected, focusNeighborhood, onSelect, onAnswer, showConditions }) {
+  const mapElement = useRef(null);
+  const resources = useRef(null);
+  const actions = useRef({ onSelect, onAnswer });
+  const previousView = useRef(null);
+  const refit = useRef(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [city, range, mode, , type, building] = answers;
+  const done = answers.length === totalSteps;
+
+  useEffect(() => {
+    actions.current = { onSelect, onAnswer };
+  }, [onSelect, onAnswer]);
+
+  useEffect(() => {
+    let active = true;
+    let resizeObserver;
+    let frame;
+    loadLeaflet().then(L => {
+      if (!active) return;
+      const map = L.map(mapElement.current, { zoomControl: false, minZoom: 4, maxZoom: 19, zoomSnap: 0.1 });
+      map.setView([36.4, 127.8], 6);
+      L.control.zoom({ position: "topright" }).addTo(map);
+      const layers = L.layerGroup().addTo(map);
+      const current = { L, map, layers, markers: [] };
+      resources.current = current;
+      previousView.current = null;
+      map.on("moveend", () => positionPriceCards(map, current.markers));
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).on("tileerror", () => setError("일부 지도 타일을 불러오지 못했어요."))
+        .on("tileload", () => setError("")).addTo(map);
+
+      resizeObserver = new ResizeObserver(() => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+          map.invalidateSize({ pan: false });
+          refit.current?.(false);
+        });
+      });
+      resizeObserver.observe(mapElement.current);
+      setReady(true);
+    }).catch(() => {
+      if (active) setError("지도를 불러오지 못했어요. 아래 후보 목록에서 결과를 확인할 수 있어요.");
+    });
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      resources.current?.map.remove();
+      resources.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !resources.current) return;
+    const { L, map, layers } = resources.current;
+    const animate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const addPin = (at, content, title, click, active = false) => {
+      const icon = L.divIcon({ html: content, className: "maru-map-anchor", iconSize: [1, 1], iconAnchor: [0, 0] });
+      const marker = L.marker(at, { icon, title, keyboard: Boolean(click), interactive: Boolean(click), zIndexOffset: active ? 500 : 0 }).addTo(layers);
+      if (click) marker.on("click", click);
+      return marker;
+    };
+    layers.clearLayers();
+    const markers = [];
+    resources.current.markers = markers;
+    let circle;
+    if (!city) {
+      for (const option of cities) {
+        addPin(option.work, mapLabel(option.name, "maru-marker"), option.name, () => actions.current.onAnswer(option.name));
+      }
+    } else {
+      addPin(city.work, mapLabel("예시 근무지", "maru-marker work"), "예시 근무지");
+      if (range?.unit === "km") {
+        circle = L.circle(city.work, {
+          radius: range.value * 1000, color: "#216949", fillOpacity: done ? 0.025 : 0.14,
+          weight: done ? 1 : 2, dashArray: "6 5", interactive: false,
+        }).addTo(layers);
+      }
+      for (const row of range ? rows : []) {
+        if (!mode) {
+          addPin(row.at, mapLabel(row.name, "maru-marker"), row.name);
+          continue;
+        }
+        const active = row.name === selected;
+        const failed = row.failures.length > 0;
+        const pin = document.createElement("div");
+        pin.className = "maru-pin" + (active ? " chosen" : "") + (failed ? " excluded" : "");
+        const metrics = document.createElement("div");
+        metrics.className = "maru-map-metrics";
+        if (type) metrics.append(mapLabel(pyeong(row.area), "maru-pin-size"));
+        metrics.append(mapLabel(type ? priceText(type, row.price) : "편도 " + row.commute + "분", "maru-pin-price"));
+        const status = failed ? "조건 미충족" : row.rank ? row.rank + "위" : "통근 " + row.commuteRank + "위";
+        pin.append(mapLabel(row.name, "maru-pin-name"), metrics, mapLabel(type ? status + " · " + row.building : status, "maru-pin-status"));
+        markers.push(addPin(row.at, pin, row.name, done ? () => actions.current.onSelect(row.name) : null, active));
+      }
+    }
+
+    const fitView = animated => {
+      map.stop();
+      if (!city) {
+        map.fitBounds([[33.08, 125.94], [38.62, 131.95]], { padding: [12, 20], animate: false });
+        return;
+      }
+      if (!range) {
+        map.setView(city.work, 11.5, { animate: animated });
+        return;
+      }
+      const focused = focusNeighborhood && rows.find(row => row.name === selected);
+      if (focused) {
+        map.setView(focused.at, 16, { animate: animated });
+        return;
+      }
+      const finalView = done && rows.length > 0;
+      const bounds = L.latLngBounds([city.work, ...rows.map(row => row.at)]);
+      if (circle && !finalView) bounds.extend(circle.getBounds());
+      const size = map.getSize();
+      const side = finalView ? Math.min(72, Math.round(size.x * 0.12)) : 15;
+      const top = finalView ? Math.min(86, Math.round(size.y * 0.24)) : 45;
+      const viewBounds = bounds.pad(finalView ? 0.035 : 0.16);
+      const maxZoom = finalView
+        ? Math.max(map.getMinZoom(), Math.min(16, map.getBoundsZoom(viewBounds, false, [side * 2, top + 25])) - map.options.zoomDelta)
+        : 13.5;
+      map.flyToBounds(viewBounds, { maxZoom, paddingTopLeft: [side, top], paddingBottomRight: [side, 25], animate: animated, duration: 0.65 });
+    };
+    refit.current = fitView;
+    const viewKey = JSON.stringify([city?.name, range, mode, done, Boolean(selected), focusNeighborhood ? selected : null, showConditions]);
+    if (previousView.current !== viewKey) {
+      previousView.current = viewKey;
+      map.invalidateSize({ pan: false });
+      fitView(animate);
+    }
+    const frame = requestAnimationFrame(() => positionPriceCards(map, markers));
+    return () => cancelAnimationFrame(frame);
+  }, [answers, city, done, focusNeighborhood, mode, range, ready, rows, selected, showConditions, type]);
+
+  const filters = [city?.name ?? "대한민국", range && answerLabel(step.range, range), mode, type,
+    building !== noPreference && building,
+    range && "후보 " + rows.length + "곳"].filter(Boolean);
+
+  return <div className="maru-map-wrap">
+    <div ref={mapElement} className="maru-map" aria-label="동네 탐색 지도" />
+    <div className="maru-map-filters">{filters.map((filter, index) => <span key={index}>{filter}</span>)}</div>
+    {error && <p className="maru-map-error" role="status">{error}</p>}
+  </div>;
+}
+
+function CandidateList({ rows, mode, type, done, selected, onSelect, onEditRange, inConversation = false }) {
+  const matched = rows.filter(row => row.failures.length === 0);
+  const excluded = rows.filter(row => row.failures.length > 0);
+  const list = (items, ineligible = false) => <ul className="maru-candidates" style={inConversation ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
+    {items.map(row => {
+      const fields = <>
+        <strong>{row.rank ? row.rank + "위 " : ""}{row.name}</strong>
+        <span>편도 {row.commute}분 · 통근 {row.commuteRank}위</span>
+        {type && <span>{row.building} · {pyeong(row.area)} · {priceText(type, row.price)}</span>}
+        {ineligible && <span className="maru-reason">{row.failures.join(" · ")}</span>}
+        {done && <span style={{
+          justifySelf: "start", marginTop: 4, padding: "4px 7px",
+          borderRadius: 5, background: "var(--maru-green)", color: "#fff", fontWeight: 700,
+        }}>상세 보기 <span aria-hidden="true" style={{ color: "inherit" }}>→</span></span>}
+      </>;
+      return <li key={row.name}>
+        {done
+          ? <button type="button" className={ineligible ? "excluded" : ""} aria-pressed={selected === row.name} onClick={() => onSelect(row.name)}>{fields}</button>
+          : <div className={ineligible ? "excluded" : ""}>{fields}</div>}
+      </li>;
+    })}
+  </ul>;
+
+  return <section className="maru-results" aria-label="동네 후보 목록"
+    style={inConversation ? { maxHeight: "none", overflow: "visible", padding: "10px 0 0" } : undefined}>
+    <h2>{done ? "최종 동네 순위" : type ? "주거 조건 비교" : "통근 후보"}</h2>
+    {done && rows.length > 0 && <p style={{
+      margin: "7px 0", padding: "9px 10px", borderRadius: 8,
+      border: "1px solid #a7c5b1", background: "var(--maru-soft)", color: "var(--maru-ink)",
+    }}>
+      <strong style={{ display: "block", color: "var(--maru-green)" }}>동네 상세 보기</strong>
+      동네 버튼을 누르면 시세와 통근, 주변 부동산을 자세히 볼 수 있어요.
+    </p>}
+    {!rows.length ? <><p>통근 조건에 맞는 시연 후보가 없어요.</p><button type="button" onClick={onEditRange}>통근 범위 수정</button></> : <>
+      <p>{done || excluded.length
+        ? "통근 후보 " + rows.length + "곳 중 " + matched.length + "곳 충족"
+        : mode + " · 편도 시간순 · " + rows.length + "곳"} · 시연 데이터</p>
+      {matched.length > 0 && list(matched)}
+      {excluded.length > 0 && <><h3>조건 미충족 {excluded.length}곳</h3>{list(excluded, true)}</>}
+    </>}
+  </section>;
+}
+
+const searchMap = query => "https://map.kakao.com/link/search/" + encodeURIComponent(query);
+
+function Agencies({ city, name }) {
+  const offices = agencies[city]?.[name] ?? [];
+  return <>
+    <h3>{name} 주변 공인중개사</h3>
+    <ul className="maru-offices">{offices.map(([office, address, phone, page]) => <li key={office}>
+      <strong>{office}</strong><p>{address}</p>
+      <div className="maru-actions">
+        <a href={"tel:" + phone}>{phone}</a>
+        <a href={searchMap(address.split(",")[0])} target="_blank" rel="noreferrer">위치 보기 ↗</a>
+        <a href={"https://irts.molit.go.kr/usr/cmn/main/home/RtecsLreaSearch.do?pageIndex=" + page} target="_blank" rel="noreferrer">등록 출처 ↗</a>
+      </div>
+    </li>)}</ul>
+    <p>{offices.length ? "국토교통부 전자계약시스템 등록 정보입니다. 방문 전 영업 여부를 확인하세요." : "이 동네는 화면에 등록된 연락처가 없어요."}</p>
+    <a href={searchMap(city + " " + name + " 공인중개사")} target="_blank" rel="noreferrer">카카오맵에서 주변 공인중개사 검색 ↗</a>
+  </>;
+}
+
+function Facts({ items }) {
+  return <dl className="maru-facts">{items.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+}
+
+function Market({ row, answers }) {
+  const [area, setArea] = useState(row.area);
+  const type = answers[step.lease];
+  const sample = marketSample(row, area, type);
+  const variation = row.name.codePointAt(0) % 3;
+  const prices = [0.89 + variation * 0.015, 0.95, 0.93 + variation * 0.015, 1.01, 0.97, 1]
+    .map(factor => Math.round(sample.price * factor));
+  const max = Math.max(...prices);
+  const facts = [["내 " + type + " 예산", money(answers[step.budget])],
+    ["예산 비교", sample.price > answers[step.budget] ? "한도 초과" : "한도 이내"]];
+  if (type === "월세") facts.push(["보증금 예시", money(row.rentDeposit)], ["내 보증금 한도", money(answers[step.deposit])]);
+  facts.push(["선호 방 구조", answers[step.room]], ["관리비·입주 가능일", "매물에서 확인"]);
+
+  return <>
+    <div className="maru-market">
+      <small>시연 데이터 · {areaText(area)}</small>
+      <h3>{priceText(type, sample.price)}</h3>
+      <p>시연 6개월 가격 추이</p>
+      <div className="maru-chart" role="img" aria-label={prices.map((price, index) => (index === 5 ? "기준" : (5 - index) + "개월 전") + " " + money(price)).join(", ")}>
+        {prices.map((price, index) => <div key={index} title={money(price)}>
+          <div><span style={{ height: price / max * 100 + "%" }} /></div><small>{index === 5 ? "기준" : "-" + (5 - index) + "개월"}</small>
+        </div>)}
+      </div>
+    </div>
+    <h3>전용면적별 가격 예시</h3>
+    <div className="maru-sizes">{row.areas.map(size => <button key={size} type="button" aria-pressed={area === size} onClick={() => setArea(size)}>
+      <span>{areaText(size)}</span><strong>{priceText(type, marketSample(row, size, type).price)}</strong>
+    </button>)}</div>
+    <Facts items={facts} />
+  </>;
+}
+
+function Detail({ row, rows, answers, onSelect, focus, onZoom }) {
+  const [tab, setTab] = useState("시세·면적");
+  const facts = [["종합 점수", row.score + "점"], [answers[step.mode] + " 편도 예시", row.commute + "분 · 직선 " + row.km.toFixed(1) + "km"],
+    ["환경 선호 반영", Math.round(row.environmentScore) + "점"]];
+
+  return <section className="maru-detail" aria-label="동네 상세">
+    <div className="maru-detail-head"><div><h2>{row.name}</h2><p>{answers[step.city].name} · {row.building} · {answers[step.lease]}</p></div>
+      <div className="maru-actions"><button type="button" onClick={onZoom}>{focus ? "후보 전체 보기" : "이 동네 확대"}</button><button type="button" onClick={() => onSelect(null)}>닫기</button></div>
+    </div>
+    <div className="maru-actions maru-detail-ranks">{rows.map(candidate => <button type="button" key={candidate.name} aria-pressed={candidate === row}
+      onClick={() => onSelect(candidate.name)}>{candidate.rank ? candidate.rank + "위 " : ""}{candidate.name}</button>)}</div>
+    <nav className="maru-tabs" aria-label="동네 상세 메뉴">{["시세·면적", "통근·생활", "주변 부동산"].map(name => <button type="button" key={name}
+      aria-pressed={tab === name} onClick={() => setTab(name)}>{name}</button>)}</nav>
+    {row.failures.length > 0 && <p className="maru-reason">{row.failures.join(" · ")}</p>}
+    {tab === "시세·면적" && <Market row={row} answers={answers} />}
+    {tab === "통근·생활" && <>
+      <Facts items={facts} />
+      <div className="maru-meters">{row.environment.map((value, index) => <label key={envNames[index]}>{envNames[index]}<meter min={0} max={100} value={value} /><span>{value}</span></label>)}</div>
+      <p>환경 60% · 통근 25% · 예산 15% · 시연 데이터</p>
+      <a href="https://apply.lh.or.kr/" target="_blank" rel="noreferrer">LH청약플러스에서 공고 보기 ↗</a>
+    </>}
+    {tab === "주변 부동산" ? <Agencies city={answers[step.city].name} name={row.name} />
+      : <button type="button" className="maru-primary maru-agency-action" onClick={() => setTab("주변 부동산")}>주변 부동산 찾기 →</button>}
+  </section>;
+}
+
+function RecommendationReason({ winner, runnerUp, answers }) {
+  if (!winner) {
+    return <div className="maru-question" aria-live="polite">
+      <small>마루의 분석</small>
+      <h2>조건을 조금 바꿔볼까요?</h2>
+      <p>모든 조건을 충족한 동네가 없어요. 후보 목록에서 조건을 확인해 주세요.</p>
+    </div>;
+  }
+
+  const type = answers[step.lease];
+  const remainingBudget = answers[step.budget] - winner.price;
+  const environment = answerLabel(step.environment, answers[step.environment]);
+  const result = !runnerUp
+    ? "통근과 예산 조건을 충족한 후보가 이곳 한 곳이에요."
+    : winner.score === runnerUp.score
+      ? runnerUp.name + "과 종합 점수가 같아 기존 통근 순위에서 앞선 이곳을 1위로 골랐어요."
+      : runnerUp.name + "보다 종합 점수가 " + (winner.score - runnerUp.score) + "점 높아요.";
+  const commute = "편도 " + winner.commute + "분" + (answers[step.range].unit === "km" ? " · 직선 " + winner.km.toFixed(1) + "km" : "");
+  const budget = priceText(type, winner.price) + (remainingBudget > 0 ? " · 한도보다 " + money(remainingBudget) + " 낮음" : " · 한도 이내");
+
+  return <div className="maru-question" aria-live="polite">
+    <small>마루의 분석 · 종합 {winner.score}점</small>
+    <h2>{winner.name}이 1위인 이유</h2>
+    <p>{result}</p>
+    <Facts items={[
+      ["통근", commute],
+      ["시연 가격", budget],
+      ["환경 선호 · " + environment, Math.round(winner.environmentScore) + "점"],
+    ]} />
+  </div>;
+}
+
+export default function AiRecommendationPage({ onBack }) {
+  const [started, setStarted] = useState(false);
+  const conversationRef = useRef(null);
+  const [savedAnswers, setSavedAnswers] = useState([]);
+  const [reviewIndex, setReviewIndex] = useState(null);
+  const answers = useMemo(() => reviewIndex === null ? savedAnswers : savedAnswers.slice(0, reviewIndex), [reviewIndex, savedAnswers]);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [showConditions, setShowConditions] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const question = getQuestion(answers);
+  const rows = useMemo(() => getRecommendations(answers), [answers]);
+  const [city, , mode, , type] = answers;
+  const done = answers.length === totalSteps;
+  const selectedRow = rows.find(row => row.name === selected);
+  const winner = rows.find(row => row.rank === 1);
+  const runnerUp = rows.find(row => row.rank === 2);
+  const previousIndex = answers.findLastIndex(answer => answer !== null);
+  useEffect(() => {
+    if (conversationRef.current) conversationRef.current.scrollTop = 0;
+  }, [done, reviewIndex]);
+
+  function submit(value) {
+    const next = addAnswer(answers, value);
+    if (!next) {
+      setError("지금 질문에 맞게 예시처럼 한 번 더 알려주세요.");
+      return;
+    }
+    // Retain the answer slot expected by the shared recommendation module.
+    if (next.length === step.arrival) next.push(null);
+    setSavedAnswers(next);
+    setReviewIndex(null);
+    setInput("");
+    setError("");
+  }
+
+  function edit(index) {
+    setReviewIndex(index);
+    setInput("");
+    setError("");
+    setSelected(null);
+    setShowConditions(false);
+    setFocus(false);
+  }
+
+  function nextReviewedStep() {
+    const nextIndex = savedAnswers.findIndex((answer, index) => index > reviewIndex && answer !== null);
+    setReviewIndex(nextIndex === -1 ? null : nextIndex);
+    setInput("");
+    setError("");
+  }
+
+  function restart() {
+    edit(0);
+    setReviewIndex(null);
+    setSavedAnswers([]);
+    setStarted(false);
+  }
+
+  function select(name) {
+    setSelected(name);
+    setFocus(Boolean(name));
+  }
+
+  return <section className="maru-flow" aria-label="맞춤 분석">
+    <div className="maru-toolbar"><strong>맞춤 분석</strong><div className="maru-actions">
+      {done && <button type="button" aria-expanded={showConditions} onClick={() => setShowConditions(value => !value)}>{showConditions ? "조건 접기" : "조건 보기"}</button>}
+      {started && previousIndex >= 0 && <button type="button" onClick={() => edit(previousIndex)}>← 이전 단계</button>}
+      {started && <button type="button" onClick={restart}>다시 시작</button>}
+      <button type="button" onClick={onBack}>매물 추천</button>
+    </div></div>
+    {!started ? <div className="maru-welcome">
+      <img src={maruImage} alt="지도를 들고 인사하는 마루" />
+      <div><small>마루</small><h1>안녕하세요, 마루예요!</h1>
+        <p>새 직장 근처에서 살 만한 동네를 함께 찾아봐요.</p>
+        <p>출근 조건과 집 예산을 알려주면 통근 시간, 월세·전세 시세, 생활환경을 지도에서 비교할 수 있어요.</p>
+        <button type="button" className="maru-primary" onClick={() => setStarted(true)}>자, 그럼 시작해볼까요? →</button>
+      </div>
+    </div> : <div className="maru-layout">
+      <aside ref={conversationRef} className="maru-conversation" aria-label="마루와 대화">
+        <div className="maru-profile"><img src={maruImage} alt="마루" /><div><strong>마루</strong><p>이사할 동네를 같이 찾아요</p></div></div>
+        {city && !done && <div className="maru-lh"><strong>{city.name} LH 공공임대</strong><p>접수 상태 미확인</p><a href="https://apply.lh.or.kr/" target="_blank" rel="noreferrer">공고 확인 ↗</a></div>}
+        {(!done || showConditions) && <>
+          <nav className="maru-steps" aria-label="추천 조건">{names.map((name, index) => index === step.arrival || isSkipped(index, answers) ? null : <button type="button" key={name}
+            aria-current={index === answers.length ? "step" : undefined} disabled={index >= answers.length} onClick={() => edit(index)}>{name}</button>)}</nav>
+          <div className="maru-history">{answers.map((answer, index) => answer === null ? null : <span key={index}>{names[index]} · {answerLabel(index, answer)}</span>)}</div>
+        </>}
+        {done ? <>
+          <RecommendationReason winner={winner} runnerUp={runnerUp} answers={answers} />
+          <CandidateList rows={rows} mode={mode} type={type} done selected={selected} onSelect={select} onEditRange={() => edit(step.range)} inConversation />
+        </> : question && <>
+          <div className="maru-question" key={answers.length} aria-live="polite">
+            <small>마루</small><h2>{question.title}</h2><p>{question.description}</p>
+            {reviewIndex !== null && <p><strong>이전에 입력한 답변</strong> · {answerLabel(reviewIndex, savedAnswers[reviewIndex])}</p>}
+          </div>
+          <div className="maru-actions maru-choices">{question.choices.map(choice => <button type="button" key={choice} onClick={() => submit(choice)}>{choice}</button>)}</div>
+          <form className="maru-input" onSubmit={event => { event.preventDefault(); submit(input); }}>
+            <input value={input} onChange={event => setInput(event.target.value)} placeholder={question.placeholder} aria-label="마루에게 답하기" maxLength={140} />
+            <button className="maru-primary" type="submit">{reviewIndex === null ? "답하기" : "답변 수정"}</button>
+          </form>
+          {reviewIndex !== null && <div className="maru-actions maru-choices"><button type="button" onClick={nextReviewedStep}>기존 답변으로 다음 →</button></div>}
+          {error && <p className="maru-reason" role="status">{error}</p>}
+        </>}
+      </aside>
+      <div className="maru-stage">
+        <MaruMap answers={answers} rows={rows} selected={selected} focusNeighborhood={focus} onAnswer={submit} onSelect={select} showConditions={showConditions} />
+        {done && selectedRow ? <Detail key={selectedRow.name} row={selectedRow} rows={rows} answers={answers} onSelect={select} focus={focus} onZoom={() => setFocus(value => !value)} />
+          : !done && mode && <CandidateList rows={rows} mode={mode} type={type} done={false} selected={selected} onSelect={select} onEditRange={() => edit(step.range)} />}
+      </div>
+    </div>}
+  </section>;
+}
+
