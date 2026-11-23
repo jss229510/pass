@@ -33,10 +33,10 @@
   width: 360px;
   max-width: calc(100vw - 32px);
   overflow: hidden;
-  border: 1px solid #dceae5;
+  border: 1px solid #d9e5f8;
   border-radius: 14px;
   background: #fff;
-  box-shadow: 0 20px 48px #122a2733;
+  box-shadow: 0 20px 48px #172b4d33;
   animation: notification-enter 0.18s ease-out both;
 }
 
@@ -50,11 +50,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 15px 18px;
-  border-bottom: 1px solid #edf3f1;
+  border-bottom: 1px solid #f7faff;
 }
 
 .notification-panel-head b {
-  color: #17342e;
+  color: #172b4d;
   font-size: 15px;
 }
 
@@ -62,14 +62,14 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #008b70;
+  color: #1d4ed8;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .notification-panel-head button:disabled {
-  color: #a8b8b4;
+  color: #596b85;
   cursor: default;
 }
 
@@ -97,7 +97,7 @@
   cursor: pointer;
 }
 
-.notification-panel li button:hover { background: #f5faf8; }
+.notification-panel li button:hover { background: #f7faff; }
 
 .notification-panel li button.unread:after {
   content: "";
@@ -107,7 +107,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #008b70;
+  background: #1d4ed8;
 }
 
 .notification-icon {
@@ -121,7 +121,7 @@
 }
 
 .notification-icon.market { background: #fdecec; color: #e5484d; }
-.notification-icon.property { background: #e8f6f1; color: #008b70; }
+.notification-icon.property { background: #eff6ff; color: #1d4ed8; }
 .notification-icon.support { background: #fff4e0; color: #d98a00; }
 .notification-icon.document { background: #e8effc; color: #3a6fdc; }
 
@@ -133,24 +133,24 @@
 }
 
 .notification-body b {
-  color: #17342e;
+  color: #172b4d;
   font-size: 13px;
 }
 
 .notification-body span {
-  color: #4f6761;
+  color: #425877;
   font-size: 12px;
   line-height: 1.5;
 }
 
 .notification-body small {
-  color: #9aaba7;
+  color: #596b85;
   font-size: 11px;
 }
 
 .notification-panel li button:not(.unread) .notification-body b,
 .notification-panel li button:not(.unread) .notification-body span {
-  color: #8a9c97;
+  color: #596b85;
 }
 
 @media (max-width: 760px) {

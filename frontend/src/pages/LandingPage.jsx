@@ -2,10 +2,10 @@ import React from "react";
 import MarketPriceSection from "../components/MarketPriceSection";
 import maruImage from "../assets/maru-guide-v2.png";
 
-const areaImages = [
-  "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=220&q=80",
-  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=220&q=80",
-  "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=220&q=80",
+const recommendedRegions = [
+  { id: "sangdo", name: "서울 동작구 상도동", description: "서울 서남권 생활권 · 통근 동선 확인", image: "https://img.khan.co.kr/newsmaker/1488/1488_41.jpg", imageAlt: "서울 상도동 주거 골목" },
+  { id: "yeongtong", name: "경기 수원시 영통구 영통동", description: "수인분당선 생활권 · 생활 편의 확인", image: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Suwon.jpg", imageAlt: "수원 영통구 상권 거리" },
+  { id: "jeonpo", name: "부산 부산진구 전포동", description: "서면 인접 생활권 · 상권과 주거 환경 확인", image: "https://www.busan.go.kr/ImagePrint.do?dir=smartEditor&fileext=jpg&filesize=337488&filetype=image%2Fjpeg&realname=4-5-2%EC%A0%84%ED%8F%AC%EB%8F%99%EC%B9%B4%ED%8E%98%EA%B1%B0%EB%A6%AC_%EC%9D%B4%EB%AF%BC%EC%9E%AC_cw16.jpg&savename=d65d096ecb864486bd0703bd50efd184", imageAlt: "부산 전포동 카페거리" },
 ];
 
 function FeatureIcon({ type }) {
@@ -14,7 +14,7 @@ function FeatureIcon({ type }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8.5 15l2.1 2.1 4.5-4.5" /></svg>;
 }
 
-function LandingPage({ properties, onStartJourney, onStartAnalysis, onNavigate, onPropertyDetail }) {
+function LandingPage({ onStartJourney, onStartAnalysis, onNavigate }) {
   const guideSteps = ["조건 입력", "매물 추천", "매물 비교", "계약 점검"];
 
   return (
@@ -30,22 +30,22 @@ function LandingPage({ properties, onStartJourney, onStartAnalysis, onNavigate, 
           display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(270px, .85fr);
           gap: clamp(24px, 5vw, 76px); align-items: center;
           min-height: 500px; padding: clamp(32px, 5vw, 80px) clamp(24px, 8vw, 170px);
-          background: radial-gradient(ellipse at 94% 18%, #f5e8ce, transparent 53%), linear-gradient(120deg, #f6faf7, #eaf2e3);
+          background: radial-gradient(ellipse at 94% 18%, #dbeafe, transparent 53%), linear-gradient(120deg, #f8fbff, #e8f1ff);
         }
         .landing-journey-hero:after { display: none; }
         .landing-journey-hero .hero-copy { width: auto; padding: 0; }
         .landing-journey-hero .hero-copy h1 { font-size: clamp(35px, 4.5vw, 68px); word-break: keep-all; }
         .landing-journey-hero .hero-copy .desc { line-height: 1.65; word-break: keep-all; }
-        .landing-journey-hero .hero-copy h1 b { color: #1c5746; }
-        .landing-journey-hero .hero-actions .start { background: #1d4a3c; border-color: #1d4a3c; }
+        .landing-journey-hero .hero-copy h1 b { color: var(--color-primary-strong); }
+        .landing-journey-hero .hero-actions .start { background: var(--color-primary-strong); border-color: var(--color-primary-strong); }
         .landing-maru { display: grid; justify-items: center; align-self: stretch; align-content: center; min-width: 0; }
-        .landing-maru img { display: block; width: min(100%, 310px); height: clamp(145px, 28vw, 325px); object-fit: contain; filter: drop-shadow(0 10px 14px #24422c35); }
+        .landing-maru img { display: block; width: min(100%, 310px); height: clamp(145px, 28vw, 325px); object-fit: contain; filter: drop-shadow(0 10px 14px rgb(var(--color-primary-rgb) / .22)); }
         .landing-maru-card {
-          width: min(100%, 380px); text-align: left; padding: 16px 18px; border: 1px solid #d7e4d5;
-          border-radius: 14px; background: #fffdf9; box-shadow: 0 8px 25px #20403310;
+          width: min(100%, 380px); text-align: left; padding: 16px 18px; border: 1px solid var(--color-primary-tint);
+          border-radius: 14px; background: #fff; box-shadow: 0 8px 25px rgb(var(--color-primary-rgb) / .08);
         }
-        .landing-maru-card h2 { margin: 0; color: #19382f; font-size: clamp(17px, 2vw, 24px); }
-        .landing-maru-card p { margin: 6px 0 12px; color: #435e51; font-size: .9rem; line-height: 1.5; }
+        .landing-maru-card h2 { margin: 0; color: var(--color-text); font-size: clamp(17px, 2vw, 24px); }
+        .landing-maru-card p { margin: 6px 0 12px; color: var(--color-text-secondary); font-size: .9rem; line-height: 1.5; }
         .landing-maru-card .hero-actions button { height: auto; min-height: 42px; padding: 8px 13px; font-size: 14px; }
         @media(max-width: 760px) {
           .landing-hero.landing-journey-hero { grid-template-columns: minmax(0, 1fr); gap: 22px; min-height: auto; }
@@ -80,8 +80,8 @@ function LandingPage({ properties, onStartJourney, onStartAnalysis, onNavigate, 
         <style>{`.policy-icon{display:grid;place-items:center;width:52px;height:52px;color:var(--color-primary-strong)}.policy-icon svg{width:42px;height:42px}`}</style>
         <div className="content-top">
           <section className="candidate-section">
-            <div className="candidate-heading"><h2>AI가 추천한 매물</h2><button className="candidate-shortcut" type="button" onClick={() => onNavigate("property-map-search")}>지도에서 보기</button></div>
-            <div className="area-list">{properties.map((property, index) => <button className="area-card" type="button" key={property.id} onClick={() => onPropertyDetail(property)}><img src={areaImages[index % areaImages.length]} alt="" /><div><b>{property.title}</b><span>{property.location} · {property.rent}</span></div></button>)}</div>
+            <div className="candidate-heading"><h2>AI가 추천한 지역</h2><button className="candidate-shortcut" type="button" onClick={() => onNavigate("property-map-search")}>지도에서 보기</button></div>
+            <div className="area-list">{recommendedRegions.map((region) => <button className="area-card" type="button" key={region.id} onClick={() => onNavigate("property-map-search")}><img src={region.image} alt={region.imageAlt} /><div><b>{region.name}</b><span>{region.description}</span></div></button>)}</div>
           </section>
           <section><div className="easy-title"><h2>AI가 이사 결정을 돕는 세 가지</h2></div><div className="easy-list"><div className="easy-item"><i className="easy-icon"><FeatureIcon type="environment" /></i><div><b>주변환경지수 분석</b><span>교통·치안·소음·날씨·편의시설을<br />점수로 비교해요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="contract" /></i><div><b>계약서 질문 생성</b><span>관리비 등 확인할 질문을<br />계약서 내용에 맞춰 만들어요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="move" /></i><div><b>입주 계획 정리</b><span>청년지원·필수 서류·입주일까지<br />해야 할 일을 정리해요.</span></div></div></div></section>
         </div>

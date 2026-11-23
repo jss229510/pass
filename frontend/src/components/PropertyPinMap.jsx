@@ -137,7 +137,7 @@ function PropertyPinMap({ searchQuery, pins, boundsListings, selectedIds, active
     const origin = new kakao.maps.LatLng(facilityOrigin.lat, facilityOrigin.lng);
     facilities.filter((facility) => facility.place).forEach((facility) => {
       const position = new kakao.maps.LatLng(facility.place.lat, facility.place.lng);
-      const line = new kakao.maps.Polyline({ path: [origin, position], strokeWeight: 2, strokeColor: "#008b70", strokeOpacity: 0.55, strokeStyle: "shortdash" });
+      const line = new kakao.maps.Polyline({ path: [origin, position], strokeWeight: 2, strokeColor: "#1d4ed8", strokeOpacity: 0.55, strokeStyle: "shortdash" });
       const label = new kakao.maps.CustomOverlay({ position, content: createFacilityElement(facility), yAnchor: 0.5, zIndex: 2, clickable: true });
       line.setMap(mapRef.current);
       label.setMap(mapRef.current);

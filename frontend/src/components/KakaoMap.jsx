@@ -139,12 +139,12 @@ function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange, roadvie
     const latitudeOffset = (meters / 111000) * (routeTarget.rank % 2 === 0 ? -0.72 : 0.72);
     const longitudeOffset = (meters / (111000 * Math.cos(start.getLat() * Math.PI / 180))) * (routeTarget.rank % 3 === 0 ? -0.72 : 0.72);
     const destination = new window.kakao.maps.LatLng(start.getLat() + latitudeOffset, start.getLng() + longitudeOffset);
-    const routeColors = { "도보": "#16a34a", "대중교통": "#2563eb", "자동차": "#f97316" };
+    const routeColors = { "도보": "#2563eb", "대중교통": "#2563eb", "자동차": "#f97316" };
 
     const routeLine = new window.kakao.maps.Polyline({
       path: [start, destination],
       strokeWeight: 6,
-      strokeColor: routeColors[routeTarget.mode] ?? "#008b70",
+      strokeColor: routeColors[routeTarget.mode] ?? "#1d4ed8",
       strokeOpacity: 0.88,
       strokeStyle: "solid",
     });
@@ -203,12 +203,12 @@ function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange, roadvie
   return (
     <div className="kakao-map-canvas" aria-label={`${regionName} 지도`} style={{ position: "relative", overflow: "hidden" }}>
       <div ref={mapElementRef} style={{ position: "absolute", inset: 0 }} />
-      {roadviewError && <p style={{ position: "absolute", zIndex: 2, top: 56, left: "50%", maxWidth: 300, margin: 0, padding: "8px 10px", borderRadius: 8, background: "#fff", color: "#8a4b25", fontSize: 11, lineHeight: 1.45, boxShadow: "0 4px 10px #143d3326", transform: "translateX(-50%)" }}>{roadviewError}</p>}
+      {roadviewError && <p style={{ position: "absolute", zIndex: 2, top: 56, left: "50%", maxWidth: 300, margin: 0, padding: "8px 10px", borderRadius: 8, background: "#fff", color: "#8a4b25", fontSize: 11, lineHeight: 1.45, boxShadow: "0 4px 10px #172b4d26", transform: "translateX(-50%)" }}>{roadviewError}</p>}
       <div ref={roadviewElementRef} style={{ position: "absolute", zIndex: 3, inset: 0, visibility: isRoadviewOpen ? "visible" : "hidden", pointerEvents: isRoadviewOpen ? "auto" : "none" }}>
         <button
           type="button"
           onClick={() => { setIsRoadviewOpen(false); setRoadviewTarget(null); }}
-          style={{ position: "absolute", zIndex: 4, top: 12, right: 12, border: 0, borderRadius: 8, padding: "8px 10px", background: "#fff", color: "#31564d", fontSize: 12, fontWeight: 800, boxShadow: "0 4px 10px #0004" }}
+          style={{ position: "absolute", zIndex: 4, top: 12, right: 12, border: 0, borderRadius: 8, padding: "8px 10px", background: "#fff", color: "#425877", fontSize: 12, fontWeight: 800, boxShadow: "0 4px 10px #0004" }}
         >
           지도 보기
         </button>

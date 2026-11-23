@@ -17,8 +17,9 @@ import { createDemoPlan, demoScenario } from "./pages/MovingJourneyDemo";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import PropertyMapSearchPage from "./pages/PropertyMapSearchPage";
 import SupportPage from "./pages/SupportPage";
+import OnboardingPage from "./pages/OnboardingPage";
 
-const availableSteps = new Set(["landing", "login", "signup", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "contracts", "mypage", "notifications", "guide", "customer-center", "community-qna", "moving-journey", "journey-analysis", "journey-support", "journey-documents"]);
+const availableSteps = new Set(["landing", "login", "signup", "onboarding", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "contracts", "mypage", "notifications", "guide", "customer-center", "community-qna", "moving-journey", "journey-analysis", "journey-support", "journey-documents"]);
 const journeyStorageKey = "passMovingJourney";
 const demoStorageKey = "passMovingJourneyBusanDemo";
 
@@ -212,6 +213,7 @@ function App() {
   };
 
   const isAuthPage = step === "login" || step === "signup";
+  const isStandalonePage = isAuthPage || step === "onboarding";
   const headerStep = journeySteps.has(step) ? "moving-journey"
     : step === "community-qna" ? "customer-center"
     : ["property-compare", "property-detail", "property-recommendations"].includes(step) ? "property-map-search"
@@ -219,13 +221,14 @@ function App() {
 
   return (
     <div className="housing-app">
-      {!isAuthPage && <Header activeStep={headerStep} onOpenJourney={() => openJourney()} onNavigate={setStep} onNotify={notify} />}
-      <main className={step === "landing" ? "container landing-container" : isAuthPage ? "container auth-container" : step === "moving-journey" ? "journey-container" : "container"}>
+      {!isStandalonePage && <Header activeStep={headerStep} onOpenJourney={() => openJourney()} onNavigate={setStep} onNotify={notify} />}
+      <main className={step === "landing" ? "container landing-container" : isStandalonePage ? "container auth-container" : step === "moving-journey" ? "journey-container" : "container"}>
         {step === "landing" && (
           <LandingPage properties={properties} onStartJourney={() => openJourney()}
             onStartAnalysis={startJourneyAnalysis} onNavigate={setStep} onPropertyDetail={openPropertyDetail} />
         )}
-        {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep("property-search")} />}
+        {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep("onboarding")} />}
+        {step === "onboarding" && <OnboardingPage onComplete={() => setStep("mypage")} onNotify={notify} />}
         {step === "property-search" && <ConditionsPage draft={recommendationDraft} setDraft={setRecommendationDraft} budget={budget} setBudget={setBudget} currentStep={recommendationStep} onStepChange={setRecommendationStep} resetVersion={recommendationResetVersion} onSaveAndExit={saveRecommendationAndExit} onRequestReset={() => setIsRecommendationResetOpen(true)} onAiRecommend={() => setStep("custom-analysis")} onSupport={() => setStep("support")} onNotify={notify} />}
         {step === "custom-analysis" && <AiRecommendationPage
           flow={maruFlow} onFlowChange={updateMaru} onBack={() => goBack(() => setStep("property-search"))}
