@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import Header from "./components/Header";
-import QuickMapPanel from "./components/QuickMapPanel";
 import { properties } from "./data/housingData";
 import AiRecommendationPage from "./pages/AiRecommendationPage";
 import AuthPage from "./pages/AuthPage";
@@ -15,9 +14,10 @@ import MyPage from "./pages/MyPage";
 import PropertyRecommendationsPage from "./pages/PropertyRecommendationsPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import PropertyComparePage from "./pages/PropertyComparePage";
+import PropertyMapSearchPage from "./pages/PropertyMapSearchPage";
 import SupportPage from "./pages/SupportPage";
 
-const availableSteps = new Set(["landing", "login", "signup", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "support", "documents", "mypage", "living-cost", "guide", "customer-center", "community-qna"]);
+const availableSteps = new Set(["landing", "login", "signup", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "mypage", "living-cost", "guide", "customer-center", "community-qna"]);
 const legacyStepMap = {
   home: "property-search",
   "ai-recommend": "custom-analysis",
@@ -46,7 +46,6 @@ function App() {
   const [recommendationResetVersion, setRecommendationResetVersion] = useState(0);
   const [isRecommendationResetOpen, setIsRecommendationResetOpen] = useState(false);
   const [toast, setToast] = useState("");
-  const [isQuickMapOpen, setIsQuickMapOpen] = useState(false);
 
   useEffect(() => {
     window.sessionStorage.setItem("housingActiveStep", step);
@@ -88,8 +87,7 @@ function App() {
 
   return (
     <div className="housing-app">
-      {!isAuthPage && <Header activeStep={step === "community-qna" ? "customer-center" : step === "property-compare" || step === "property-detail" ? "property-recommendations" : step} isMapOpen={isQuickMapOpen} onMapToggle={() => setIsQuickMapOpen((isOpen) => !isOpen)} onNavigate={setStep} onNotify={notify} />}
-      {!isAuthPage && isQuickMapOpen && <QuickMapPanel onClose={() => setIsQuickMapOpen(false)} />}
+      {!isAuthPage && <Header activeStep={step === "community-qna" ? "customer-center" : step === "property-compare" || step === "property-detail" ? "property-recommendations" : step} onNavigate={setStep} onNotify={notify} />}
       <main className={step === "landing" ? "container landing-container" : isAuthPage ? "container auth-container" : "container"}>
         {step === "landing" && <LandingPage properties={properties} onStart={() => setStep("custom-analysis")} onNavigate={setStep} onPropertyDetail={openPropertyDetail} />}
         {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep("property-search")} />}
@@ -98,7 +96,8 @@ function App() {
         {step === "property-recommendations" && <PropertyRecommendationsPage budget={budget} properties={properties} onDetail={openPropertyDetail} onCompare={openPropertyCompare} onBack={() => setStep("property-search")} onNotify={notify} />}
         {step === "property-compare" && <PropertyComparePage properties={comparisonProperties} onBack={() => setStep("property-recommendations")} onDetail={openPropertyDetail} />}
         {step === "property-detail" && <PropertyDetailPage property={selectedProperty} onBack={() => setStep("property-recommendations")} onNext={() => setStep("support")} />}
-        {step === "support" && <SupportPage onDocuments={() => setStep("documents")} />}
+        {step === "property-map-search" && <PropertyMapSearchPage />}
+        {step === "support" &&<SupportPage onDocuments={() => setStep("documents")} />}
         {step === "documents" && <DocumentsPage onNotify={notify} />}
         {step === "mypage" && <MyPage onNavigate={setStep} onNotify={notify} />}
         {step === "living-cost" && <LivingCostPage onNavigate={setStep} />}

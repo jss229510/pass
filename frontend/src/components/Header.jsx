@@ -1,11 +1,12 @@
 import React from "react";
-import { FaMapMarkedAlt } from "react-icons/fa";
+import NotificationMenu from "./NotificationMenu";
 
-function Header({ activeStep, isMapOpen, onMapToggle, onNavigate, onNotify }) {
+function Header({ activeStep, onNavigate, onNotify }) {
   const menuItems = [
     ["맞춤 분석", "custom-analysis"],
     ["매물 추천", "property-search"],
     ["매물 비교", "property-recommendations"],
+    ["매물 검색", "property-map-search"],
     ["주거지원 정책", "support"],
     ["생활비 분석", "living-cost"],
     ["서류 검토", "documents"],
@@ -38,7 +39,7 @@ function Header({ activeStep, isMapOpen, onMapToggle, onNavigate, onNotify }) {
       <div className="header-actions">
         <button className="login-link" onClick={() => onNavigate("login")}>로그인</button>
         <button className="mypage-link" onClick={() => onNavigate("mypage")}>마이페이지</button>
-        <button className={`header-map-button ${isMapOpen ? "active" : ""}`} type="button" aria-label="매물 위치 지도 보기" aria-pressed={isMapOpen} onClick={onMapToggle}><FaMapMarkedAlt aria-hidden="true" /></button>
+        <NotificationMenu onNavigate={onNavigate} />
       </div>
     </header>
   );

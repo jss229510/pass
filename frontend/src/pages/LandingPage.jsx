@@ -1,4 +1,5 @@
 import React from "react";
+import MarketPriceSection from "../components/MarketPriceSection";
 
 const areaImages = [
   "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=220&q=80",
@@ -39,6 +40,7 @@ function LandingPage({ properties, onStart, onNavigate, onPropertyDetail }) {
           </section>
           <section><div className="easy-title"><h2>AI가 이사 결정을 돕는 세 가지</h2></div><div className="easy-list"><div className="easy-item"><i className="easy-icon"><FeatureIcon type="environment" /></i><div><b>주변환경지수 분석</b><span>교통·치안·소음·날씨·편의시설을<br />점수로 비교해요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="contract" /></i><div><b>계약서 질문 생성</b><span>관리비 등 확인할 질문을<br />계약서 내용에 맞춰 만들어요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="move" /></i><div><b>입주 계획 정리</b><span>청년지원·필수 서류·입주일까지<br />해야 할 일을 정리해요.</span></div></div></div></section>
         </div>
+        <MarketPriceSection onNavigate={onNavigate} />
         <section className="flow-row"><div className="flow-intro"><b>AI 이사 의사결정 흐름</b><span>조건 입력부터 입주일까지<br />결정에 필요한 과정을 한 번에 봐요.</span></div><div className="flow-step"><b>내 조건 입력하기</b><span>희망 지역·예산·방 구조를<br />바탕으로 매물을 찾아요.</span></div><div className="flow-step"><b>매물 AI 비교</b><span>보증금·월세·관리비와<br />통근 조건을 비교해요.</span></div><div className="flow-step"><b>계약·입주 준비</b><span>계약서 질문, 청년지원,<br />입주일까지 할 일을 정리해요.</span></div></section>
         <div className="bottom-row"><section className="policy-banner"><span className="policy-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3 5 6v5c0 4.6 3 8.3 7 10 4-1.7 7-5.4 7-10V6l-7-3Z" /><path d="M8.5 12.5 11 15l4.5-5" /><path d="M3 19h5M16 19h5" /></svg></span><div><b>내가 받을 수 있는<br />청년 주거 혜택을 찾으세요.</b><span>지역별 월세 지원과 LH·SH 청약 정보를 조건에 맞춰 확인해 보세요.</span></div></section><section className="guide-entry"><button className="guide-entry-card" type="button" onClick={() => onNavigate("guide")}><span className="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" /><path d="M7 8h1.5M7 11h1.5M15.5 8H17M15.5 11H17" /></svg></span><div className="guide-entry-body"><b>이용 가이드</b><span>조건 입력부터 계약 전 점검까지,<br />서비스 이용 방법을 단계별로 안내해요.</span><ol className="guide-entry-steps">{guideSteps.map((label, index) => <li key={label}><i>{String(index + 1).padStart(2, "0")}</i>{label}</li>)}</ol></div></button></section></div>
         <style>{`
