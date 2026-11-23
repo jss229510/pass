@@ -1,0 +1,143 @@
+.maru-flow {
+  --maru-ink: #172e25;
+  --maru-green: #235745;
+  --maru-paper: #fffefa;
+  --maru-soft: #eef4e9;
+  --maru-line: #dce7da;
+  --maru-muted: #51675a;
+  color: var(--maru-ink);
+  background: var(--maru-paper);
+  border: 1px solid var(--maru-line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.maru-flow h1, .maru-flow h2, .maru-flow h3, .maru-flow p { margin: 0; }
+.maru-flow p, .maru-flow small { color: var(--maru-muted); }
+.maru-flow h2 { font-size: 18px; }
+.maru-flow h3 { font-size: 15px; }
+.maru-flow p { font-size: 13px; line-height: 1.55; }
+.maru-flow a { color: var(--maru-green); font-size: 12px; }
+.maru-flow button {
+  border: 1px solid var(--maru-line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--maru-green);
+  background: var(--maru-paper);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.maru-flow button:hover:not(:disabled), .maru-flow button[aria-pressed="true"] {
+  border-color: #8cb29a;
+  background: #e7f2e5;
+}
+.maru-flow button:focus-visible, .maru-flow a:focus-visible, .maru-flow input:focus-visible {
+  outline: 2px solid #996138;
+  outline-offset: 2px;
+}
+.maru-flow .maru-primary { background: var(--maru-green); border-color: var(--maru-green); color: white; font-weight: 700; }
+.maru-flow .maru-primary:hover { background: #32644f; }
+.maru-toolbar, .maru-detail-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.maru-toolbar { padding: 11px 14px; border-bottom: 1px solid var(--maru-line); }
+.maru-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.maru-welcome { display: grid; grid-template-columns: 1fr 1.2fr; gap: clamp(12px, 5vw, 54px); align-items: center; min-height: min(550px, 72dvh); padding: clamp(18px, 6vw, 68px); background: radial-gradient(ellipse at 15% 85%, #e0ebd4, transparent 60%), #f6f6ec; }
+.maru-welcome img { width: min(100%,330px); justify-self: center; max-height: 44dvh; object-fit: contain; }
+.maru-welcome > div { border: 1px solid var(--maru-line); padding: clamp(16px, 3vw, 36px); border-radius: 20px; background: var(--maru-paper); }
+.maru-welcome h1 { font-size: clamp(22px, 3vw, 40px); margin: 8px 0 12px; line-height: 1.2; }
+.maru-welcome p + p { margin-top: 7px; }
+.maru-welcome button { margin-top: 16px; }
+.maru-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr); min-height: 530px; height: clamp(540px, 76dvh, 850px); }
+.maru-layout.results-view { grid-template-columns: minmax(0,1fr); }
+.maru-conversation { min-width: 0; min-height: 0; overflow: auto; padding: clamp(9px, 1.5vw, 20px); border-right: 1px solid var(--maru-line); }
+.maru-profile { display: flex; align-items: center; gap: 9px; border-radius: 15px; background: linear-gradient(125deg,#e8f1df,#f7edda); margin-bottom: 10px; padding: 4px 9px; }
+.maru-profile img { width: clamp(44px,10vw,118px); height: clamp(63px,10vw,115px); object-fit: contain; }
+.maru-profile strong { font-size: 19px; }
+.maru-lh { background: var(--maru-soft); border: 1px solid var(--maru-line); border-radius: 10px; padding: 8px; margin-bottom: 10px; font-size: 12px; }
+.maru-steps { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; }
+.maru-flow .maru-steps button { padding: 5px 2px; font-size: 11px; }
+.maru-steps button:disabled { opacity: .65; cursor: default; }
+.maru-flow .maru-steps button[aria-current="step"] { background: var(--maru-green); color: #fff; opacity: 1; }
+.maru-history { display: grid; gap: 3px; margin: 8px 0; max-height: 88px; overflow: auto; }
+.maru-history span { border-radius: 6px; padding: 4px 6px; font-size: 11px; background: var(--maru-soft); }
+.maru-question { border: 1px solid var(--maru-line); border-radius: 13px; background: #f5f7ed; padding: 10px; overflow-wrap: anywhere; }
+.maru-question h2 { margin: 4px 0; line-height: 1.25; font-size: clamp(16px,2vw,25px); word-break: keep-all; }
+.maru-choices { margin: 10px 0; }
+.maru-input { display: flex; gap: 5px; }
+.maru-input input { min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--maru-line); border-radius: 8px; font: inherit; font-size: 12px; }
+.maru-input button { flex-shrink: 0; }
+.maru-stage { display: grid; grid-template-rows: minmax(0,1fr) auto; min-height: 0; min-width: 0; }
+.maru-map-wrap { position: relative; isolation: isolate; min-height: 0; min-width: 0; }
+.maru-map { height: 100%; width: 100%; background: #dae6dc; }
+.maru-map-filters { position: absolute; top: 10px; left: 10px; right: 43px; z-index: 600; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none; }
+.maru-map-filters span { padding: 5px 7px; background: var(--maru-paper); border-radius: 999px; font-size: 11px; color: var(--maru-ink); }
+.maru-map-filters span:first-child { background: var(--maru-green); color: white; font-weight: 700; }
+.maru-flow .maru-map-error { position: absolute; z-index: 600; left: 10px; bottom: 24px; background: #fff1d4; padding: 6px 9px; border-radius: 7px; }
+.maru-marker { display: block; width: max-content; transform: translate(-50%,-50%); padding: 5px 8px; border-radius: 999px; background: var(--maru-paper); border: 1px solid #a5c0aa; color: var(--maru-green); font-size: 12px; font-weight: 700; }
+.maru-marker.work { background: var(--maru-green); color: white; }
+.maru-pin { display: grid; gap: 3px; width: max-content; min-width: 85px; transform: translate(-50%,-100%); background: var(--maru-paper); border: 1px solid #a8c5b0; border-top: 4px solid #629776; border-radius: 9px; box-shadow: 0 3px 10px #1b382e40; padding: 6px 9px; color: var(--maru-ink); line-height: 1.15; }
+.maru-pin::after { position: absolute; content: ""; bottom: -5px; left: calc(50% - 4px); width: 8px; height: 8px; background: inherit; border-right: 1px solid #a8c5b0; border-bottom: 1px solid #a8c5b0; transform: rotate(45deg); }
+.maru-pin.chosen { box-shadow: 0 0 0 2px #397154, 0 4px 14px #1b382e40; background: #eff6eb; }
+.maru-pin.excluded { background: #faf0df; border-top-color: #b38b66; }
+.maru-map-metrics { display: flex; align-items: center; gap: 5px; }
+.maru-pin-size { padding: 2px 4px; border-radius: 4px; background: #e3ede1; color: #235745; font-size: 10px; font-weight: 800; }
+.maru-pin-price { font-size: 16px; font-weight: 800; }
+.maru-pin-name, .maru-pin-status { font-size: 11px; color: #496358; font-weight: 700; }
+.maru-results, .maru-detail { min-height: 0; min-width: 0; overflow: auto; padding: 12px; border-top: 1px solid var(--maru-line); }
+.maru-results { max-height: 32dvh; }
+.maru-detail { max-height: 44dvh; }
+.maru-results p, .maru-detail p { margin: 4px 0 8px; }
+.maru-candidates, .maru-offices { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.maru-candidates { grid-template-columns: repeat(auto-fit,minmax(min(100%,140px),1fr)); margin-bottom: 9px; }
+.maru-candidates li > * { display: grid; gap: 2px; height: 100%; width: 100%; border: 1px solid var(--maru-line); border-radius: 8px; padding: 7px 8px; text-align: left; background: #f8faf4; }
+.maru-candidates strong { color: var(--maru-green); font-size: 13px; }
+.maru-candidates span { font-size: 11px; color: var(--maru-muted); }
+.maru-candidates .excluded, .maru-flow .maru-reason { color: #794727; background: #faf0df; }
+.maru-flow p.maru-reason { padding: 5px 7px; border-radius: 7px; }
+.maru-detail-head { align-items: start; }
+.maru-tabs, .maru-detail-ranks { margin: 7px 0; }
+.maru-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; padding: 4px; border-radius: 8px; background: var(--maru-soft); }
+.maru-tabs button { padding: 6px 3px; }
+.maru-market { padding: 9px; border-radius: 10px; background: #f5f7ee; margin: 8px 0; }
+.maru-market h3 { margin-top: 4px; color: var(--maru-green); font-size: 22px; }
+.maru-chart { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; text-align: center; }
+.maru-chart small { font-size: 10px; }
+.maru-chart > div > div { display: flex; justify-content: center; align-items: end; height: 34px; background: #e9f0e5; }
+.maru-chart span { background: #5e9575; width: 55%; border-radius: 3px 3px 0 0; }
+.maru-sizes { display: grid; gap: 5px; margin: 7px 0; }
+.maru-sizes button { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; text-align: left; }
+.maru-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 8px 0; }
+.maru-facts div { padding: 6px 8px; background: var(--maru-soft); border-radius: 7px; }
+.maru-facts dt { font-size: 11px; color: var(--maru-muted); }
+.maru-facts dd { font-size: 12px; margin: 3px 0 0; font-weight: 700; }
+.maru-meters { display: grid; gap: 5px; }
+.maru-meters label { display: grid; grid-template-columns: 70px minmax(0,1fr) 25px; align-items: center; gap: 5px; font-size: 12px; }
+.maru-meters meter { width: 100%; }
+.maru-offices li { padding: 8px; background: #f8faf4; border: 1px solid var(--maru-line); border-radius: 8px; }
+.maru-flow .maru-agency-action { display: block; margin-top: 10px; width: 100%; }
+@media (min-width: 950px) {
+  .maru-layout.results-view .maru-stage { grid-template-columns: minmax(0,1fr) minmax(285px,25%); grid-template-rows: minmax(0,1fr); }
+  .maru-layout.results-view .maru-results, .maru-layout.results-view .maru-detail { max-height: none; border-top: 0; border-left: 1px solid var(--maru-line); }
+  .maru-layout.results-view .maru-candidates { grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+  .maru-welcome { grid-template-columns: 1fr; }
+  .maru-welcome img { max-height: 26dvh; }
+  .maru-toolbar, .maru-conversation, .maru-results, .maru-detail { padding: 8px; }
+  .maru-flow .maru-toolbar button, .maru-conversation p { font-size: 11px; }
+  .maru-steps { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .maru-profile { flex-wrap: wrap; }
+  .maru-input { flex-wrap: wrap; }
+  .maru-pin { padding: 4px 6px; border-top-width: 3px; }
+  .maru-pin-price { font-size: 13px; }
+  .maru-pin-size, .maru-pin-name, .maru-pin-status { font-size: 9px; }
+  .maru-map-filters { left: 5px; top: 6px; }
+  .maru-map-filters span { font-size: 9px; padding: 3px 5px; }
+  .maru-candidates { grid-template-columns: repeat(auto-fit,minmax(min(100%,118px),1fr)); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .maru-question, .maru-welcome > div { animation: maru-enter 280ms ease-out both; }
+  .maru-welcome img, .maru-profile img { animation: maru-arrive 530ms ease-out both; }
+  @keyframes maru-enter { from { opacity: .3; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @keyframes maru-arrive { from { opacity: 0; transform: translateY(15px) scale(.9); } to { opacity: 1; transform: none; } }
+}
+
