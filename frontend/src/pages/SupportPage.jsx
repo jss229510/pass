@@ -39,7 +39,7 @@ function PolicyDetail({ policy, saved, onSave, onClose }) {
       <dl className="pl-detail-sections">{sections.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "세부 내용은 공식 공고 원문에서 확인해 주세요."}</dd></div>)}</dl>
       <p className="pl-detail-notice"><FiInfo /> 신청 자격과 일정은 해당 기관의 최신 공고를 확인해 주세요.</p>
     </div>
-    <div className="pl-detail-actions"><button type="button" onClick={() => onSave(policy.id)}><FiBookmark fill={saved ? "currentColor" : "none"} />{saved ? "저장됨" : "자료 저장"}</button>{url && <a className="pl-primary" href={url} target="_blank" rel="noopener noreferrer">{policy.example ? "공식 기관 방문" : "공고 원문 보기"}<FiExternalLink /></a>}</div>
+    <div className="pl-detail-actions"><button type="button" onClick={() => onSave(policy.id)}><FiBookmark fill={saved ? "currentColor" : "none"} />{saved ? "저장됨" : "자료 저장"}</button>{url && <a className="pl-primary cta-button" href={url} target="_blank" rel="noopener noreferrer">{policy.example ? "공식 기관 방문" : "공고 원문 보기"}<FiExternalLink /></a>}</div>
   </dialog>;
 }
 
@@ -104,7 +104,7 @@ export default function SupportPage() {
     </header>
 
     <form className="pl-search-panel" onSubmit={(event) => { event.preventDefault(); setFilters({ ...draft, keyword: draft.keyword.trim() }); setPage(1); }}>
-      <div className="pl-search-top"><label className="pl-search-input"><FiSearch /><span className="pl-sr-only">정책명 또는 키워드</span><input value={draft.keyword} onChange={(event) => setDraft({ ...draft, keyword: event.target.value })} placeholder="어떤 지원이 필요하세요? 정책명이나 키워드를 검색해 보세요" /></label><button className="pl-primary" type="submit"><FiSearch /> 정책 검색</button></div>
+      <div className="pl-search-top"><label className="pl-search-input"><FiSearch /><span className="pl-sr-only">정책명 또는 키워드</span><input value={draft.keyword} onChange={(event) => setDraft({ ...draft, keyword: event.target.value })} placeholder="어떤 지원이 필요하세요? 정책명이나 키워드를 검색해 보세요" /></label><button className="pl-primary cta-button" type="submit"><FiSearch /> 정책 검색</button></div>
       <div className="pl-search-filters"><span className="pl-filter-label"><FiSliders /> 상세 조건</span>
         <label><span>이사할 지역</span><select value={draft.region} onChange={(event) => setDraft({ ...draft, region: event.target.value })}>{["전체 지역", ...policyRegions].map((region) => <option key={region}>{region}</option>)}</select></label>
         <label><span>자료 제공기관</span><select value={draft.source} onChange={(event) => setDraft({ ...draft, source: event.target.value })}><option>전체 기관</option><option value="youth">온통청년</option><option value="lh">LH청약플러스</option></select></label>

@@ -139,62 +139,62 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
   return (
     <section className="qna-page">
       <style>{`
-        .qna-page{width:100%;max-width:1540px;margin:0 auto;color:#17342e}
+        .qna-page{width:100%;max-width:1540px;margin:0 auto;color:var(--color-text)}
         .qna-page button{font:inherit;cursor:pointer}
-        .qna-back{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:0;border:0;background:transparent;color:#5f7a72;font-size:13px;font-weight:800}
-        .qna-back:hover{color:#008b70}
+        .qna-back{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:0;border:0;background:transparent;color:var(--color-text-muted);font-size:13px;font-weight:800}
+        .qna-back:hover{color:var(--color-primary-strong)}
         .qna-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:26px 0 30px}
-        .qna-kicker{margin:0 0 12px;color:#008b70;font-size:14px;font-weight:900;letter-spacing:.08em}
+        .qna-kicker{margin:0 0 12px;color:var(--color-primary-strong);font-size:14px;font-weight:900;letter-spacing:.08em}
         .qna-hero h1{margin:0;font-size:clamp(36px,3.4vw,54px);line-height:1.12;letter-spacing:-.06em}
-        .qna-hero h1 b{color:#008b70}
-        .qna-hero p{margin:16px 0 0;color:#647680;font-size:16px;line-height:1.6}
-        .qna-write-button{flex:none;padding:13px 20px;border:0;border-radius:8px;background:#008b70;color:#fff;font-size:14px;font-weight:900}
-        .qna-write-button:hover{background:#007a63}
-        .qna-form{display:grid;gap:12px;margin-bottom:22px;padding:22px;border:1px solid #cfe6de;border-radius:15px;background:linear-gradient(145deg,#fbfffd,#eef9f5)}
+        .qna-hero h1 b{color:var(--color-primary-strong)}
+        .qna-hero p{margin:16px 0 0;color:var(--color-text-muted);font-size:16px;line-height:1.6}
+        .qna-write-button{flex:none;padding:13px 20px;border:0;border-radius:8px;background:var(--color-primary-strong);color:#fff;font-size:14px;font-weight:900}
+        .qna-write-button:hover{background:var(--color-primary)}
+        .qna-form{display:grid;gap:12px;margin-bottom:22px;padding:22px;border:1px solid var(--color-border);border-radius:15px;background:linear-gradient(145deg,var(--color-surface),var(--color-surface-soft))}
         .qna-form-row{display:grid;grid-template-columns:180px 1fr;gap:12px}
-        .qna-form select,.qna-form input,.qna-form textarea{width:100%;padding:12px;border:1px solid #d4e3de;border-radius:8px;background:#fff;color:#24463c;font:inherit;font-size:14px}
+        .qna-form select,.qna-form input,.qna-form textarea{width:100%;padding:12px;border:1px solid var(--color-border);border-radius:8px;background:#fff;color:var(--color-text);font:inherit;font-size:14px}
         .qna-form textarea{min-height:110px;resize:vertical}
         .qna-form-actions{display:flex;justify-content:flex-end;gap:8px}
         .qna-form-actions button{padding:11px 18px;border-radius:8px;font-size:13px;font-weight:900}
-        .qna-form-actions .cancel{border:1px solid #cfe0da;background:#fff;color:#5c766e}
-        .qna-form-actions .submit{border:0;background:#008b70;color:#fff}
+        .qna-form-actions .cancel{border:1px solid var(--color-border);background:#fff;color:var(--color-text-muted)}
+        .qna-form-actions .submit{border:0;background:var(--color-primary-strong);color:#fff}
         .qna-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
         .qna-chips{display:flex;flex-wrap:wrap;gap:8px}
-        .qna-chip{padding:8px 14px;border:1px solid #dceae5;border-radius:999px;background:#fff;color:#4c665e;font-size:13px;font-weight:800}
-        .qna-chip:hover{border-color:#83cdbb}
-        .qna-chip.active{border-color:#008b70;background:#008b70;color:#fff}
+        .qna-chip{padding:8px 14px;border:1px solid var(--color-background);border-radius:999px;background:#fff;color:var(--color-text-secondary);font-size:13px;font-weight:800}
+        .qna-chip:hover{border-color:var(--color-primary)}
+        .qna-chip.active{border-color:var(--color-primary);background:var(--color-primary-strong);color:#fff}
         .qna-tools{display:flex;align-items:center;gap:10px}
-        .qna-search{width:240px;padding:9px 13px;border:1px solid #dceae5;border-radius:8px;background:#fff;color:#24463c;font:inherit;font-size:13px}
-        .qna-search:focus,.qna-form select:focus,.qna-form input:focus,.qna-form textarea:focus{outline:2px solid #9fdccb;border-color:#36ae99}
-        .qna-sort{display:flex;padding:3px;border-radius:8px;background:#eef6f3}
-        .qna-sort button{padding:6px 11px;border:0;border-radius:6px;background:transparent;color:#6b827b;font-size:12px;font-weight:800}
-        .qna-sort button.active{background:#fff;color:#008b70;box-shadow:0 1px 4px #174b3b1a}
-        .qna-list{border:1px solid #dceae5;border-radius:15px;background:#fff;overflow:hidden}
-        .qna-item{border-top:1px solid #e6efec}
+        .qna-search{width:240px;padding:9px 13px;border:1px solid var(--color-background);border-radius:8px;background:#fff;color:var(--color-text);font:inherit;font-size:13px}
+        .qna-search:focus,.qna-form select:focus,.qna-form input:focus,.qna-form textarea:focus{outline:2px solid var(--color-primary-tint);border-color:var(--color-primary)}
+        .qna-sort{display:flex;padding:3px;border-radius:8px;background:var(--color-surface-soft)}
+        .qna-sort button{padding:6px 11px;border:0;border-radius:6px;background:transparent;color:var(--color-text-muted);font-size:12px;font-weight:800}
+        .qna-sort button.active{background:#fff;color:var(--color-primary-strong);box-shadow:0 1px 4px rgb(var(--color-primary-rgb) / 0.102)}
+        .qna-list{border:1px solid var(--color-background);border-radius:15px;background:#fff;overflow:hidden}
+        .qna-item{border-top:1px solid var(--color-background)}
         .qna-item:first-child{border-top:0}
         .qna-question{display:block;width:100%;padding:19px 22px;border:0;background:#fff;color:inherit;text-align:left}
-        .qna-question:hover{background:#f9fdfb}
+        .qna-question:hover{background:var(--color-surface)}
         .qna-badges{display:flex;gap:6px;margin-bottom:9px}
-        .qna-badge{padding:3px 8px;border-radius:5px;background:#f1f8f6;color:#4c605d;font-size:11px;font-weight:800}
-        .qna-badge.done{background:#e3f6ef;color:#008b70}
-        .qna-badge.wait{background:#fff4dc;color:#9a6c12}
+        .qna-badge{padding:3px 8px;border-radius:5px;background:var(--color-surface-soft);color:var(--color-text-secondary);font-size:11px;font-weight:800}
+        .qna-badge.done{background:var(--color-background);color:var(--color-primary-strong)}
+        .qna-badge.wait{background:var(--color-accent-soft);color:var(--color-text-muted)}
         .qna-title-row{display:flex;gap:16px}
-        .qna-title-row b{font-size:16px;line-height:1.45;color:#22433a}
-        .qna-preview{margin:6px 0 0;color:#6b817a;font-size:13px;line-height:1.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .qna-title-row b{font-size:16px;line-height:1.45;color:var(--color-text)}
+        .qna-preview{margin:6px 0 0;color:var(--color-text-muted);font-size:13px;line-height:1.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .qna-question[aria-expanded="true"] .qna-preview{white-space:normal}
-        .qna-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;color:#8a9b97;font-size:12px}
+        .qna-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;color:var(--color-text-muted);font-size:12px}
         .qna-detail{padding:0 22px 20px}
-        .qna-answer{margin-top:10px;padding:15px 17px;border-radius:11px;background:#f5faf8}
-        .qna-answer.official{background:#eaf8f3;border:1px solid #cdebe0}
-        .qna-answer-author{display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#3d5e55;font-size:13px;font-weight:900}
-        .qna-answer-author em{padding:2px 6px;border-radius:4px;background:#008b70;color:#fff;font-size:10px;font-style:normal}
-        .qna-answer p{margin:0;color:#557069;font-size:13px;line-height:1.65}
-        .qna-no-answer{margin-top:10px;padding:15px 17px;border-radius:11px;background:#fafcfb;color:#8a9b97;font-size:13px}
-        .qna-helpful{display:inline-flex;align-items:center;gap:6px;margin-top:13px;padding:7px 12px;border:1px solid #dceae5;border-radius:999px;background:#fff;color:#5c766e;font-size:12px;font-weight:800}
-        .qna-helpful:hover{border-color:#83cdbb}
-        .qna-helpful.active{border-color:#008b70;background:#e9f8f3;color:#008b70}
-        .qna-empty{padding:48px 20px;color:#8a9b97;font-size:14px;text-align:center}
-        .qna-notice{margin:14px 0 0;color:#8a9b97;font-size:12px}
+        .qna-answer{margin-top:10px;padding:15px 17px;border-radius:11px;background:var(--color-surface-soft)}
+        .qna-answer.official{background:var(--color-surface-soft);border:1px solid var(--color-border)}
+        .qna-answer-author{display:flex;align-items:center;gap:6px;margin-bottom:6px;color:var(--color-text-secondary);font-size:13px;font-weight:900}
+        .qna-answer-author em{padding:2px 6px;border-radius:4px;background:var(--color-primary-strong);color:#fff;font-size:10px;font-style:normal}
+        .qna-answer p{margin:0;color:var(--color-text-muted);font-size:13px;line-height:1.65}
+        .qna-no-answer{margin-top:10px;padding:15px 17px;border-radius:11px;background:#fafcfb;color:var(--color-text-muted);font-size:13px}
+        .qna-helpful{display:inline-flex;align-items:center;gap:6px;margin-top:13px;padding:7px 12px;border:1px solid var(--color-background);border-radius:999px;background:#fff;color:var(--color-text-muted);font-size:12px;font-weight:800}
+        .qna-helpful:hover{border-color:var(--color-primary)}
+        .qna-helpful.active{border-color:var(--color-primary);background:var(--color-background);color:var(--color-primary-strong)}
+        .qna-empty{padding:48px 20px;color:var(--color-text-muted);font-size:14px;text-align:center}
+        .qna-notice{margin:14px 0 0;color:var(--color-text-muted);font-size:12px}
         @media(max-width:760px){
           .qna-hero{display:block;padding:16px 0 24px}
           .qna-hero h1{font-size:34px}
@@ -215,7 +215,7 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
           <h1>다른 이용자들은<br /><b>이런 걸 궁금해했어요.</b></h1>
           <p>이사·계약·청년 지원에 대해 이용자들이 남긴 질문과 답변을 모아 봤어요.</p>
         </div>
-        <button className="qna-write-button" type="button" onClick={() => setIsWriting((value) => !value)}>{isWriting ? "작성 닫기" : "질문 남기기"}</button>
+        <button className="qna-write-button cta-button" type="button" onClick={() => setIsWriting((value) => !value)}>{isWriting ? "작성 닫기" : "질문 남기기"}</button>
       </header>
 
       {isWriting && (
@@ -229,7 +229,7 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
           <textarea value={draft.body} onChange={(event) => setDraft((value) => ({ ...value, body: event.target.value }))} placeholder="상황을 구체적으로 적어 주면 더 정확한 답변을 받을 수 있어요. 주소·연락처 같은 개인정보는 입력하지 마세요." aria-label="질문 내용" />
           <div className="qna-form-actions">
             <button className="cancel" type="button" onClick={() => setIsWriting(false)}>취소</button>
-            <button className="submit" type="submit">등록하기</button>
+            <button className="submit cta-button" type="submit">등록하기</button>
           </div>
         </form>
       )}
