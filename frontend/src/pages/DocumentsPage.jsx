@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 function DocumentIcon({ type }) {
   const paths = {
@@ -20,21 +20,262 @@ const documents = [
   ["통장 사본", "지원금 수령 계좌 확인용", <DocumentIcon type="bank" />],
 ];
 
+const demoPolicies = [
+  { id: "monthly", title: "청년 월세 지원", maxDeposit: 5000, required: [0, 1, 2, 3, 4] },
+  { id: "housing", title: "LH·SH 청약", required: [0, 1, 3] },
+  { id: "moving", title: "지역 청년 이사 지원", region: /^(대전|대전광역시)(\s|$)/, maxDeposit: 3000, required: [0, 1, 2, 4] },
+];
+
+const leaseDocumentIndex = 2;
+const leaseReviewExample = [
+  ["계약서 주소", "대전광역시 유성구 예시로 12, 302호"],
+  ["임대인 일치 여부", "일치 · 계약서의 임대인과 등기부등본의 소유자 비교 예시"],
+  ["월 관리비", "월 7만 원 · 수도 포함, 전기·가스 별도"],
+  ["입주 예정일", "2026년 12월 15일"],
+];
+
+function readSavedValue(key) {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+
 function DocumentsPage({ onNotify }) {
-  const [checked, setChecked] = useState([true, false, false, false, false]);
+  const [draft] = useState(() => readSavedValue("housingRecommendationDraft"));
+  const [checked, setChecked] = useState(() => readSavedValue("housingDocumentChecklist") ?? {});
+  const [documentType, setDocumentType] = useState("");
+  const [files, setFiles] = useState([]);
+  const [policyId, setPolicyId] = useState(null);
+  const [isPolicyOpen, setIsPolicyOpen] = useState(true);
+  const [leaseFile, setLeaseFile] = useState(null);
+  const [leasePreviewUrl, setLeasePreviewUrl] = useState("");
+  const [confirmedLeaseFields, setConfirmedLeaseFields] = useState({});
+  const leaseDialog = useRef(null);
+  const fileInput = useRef(null);
+  const area = draft?.desiredArea?.trim();
+  const deposit = String(draft?.deposit ?? "").trim() ? Number(draft.deposit) : NaN;
+  const policies = area ? demoPolicies.filter((policy) =>
+    (!policy.region || policy.region.test(area)) &&
+    (policy.maxDeposit === undefined || (deposit >= 0 && deposit <= policy.maxDeposit))
+  ) : demoPolicies;
+  const selectedPolicy = policies.find((policy) => policy.id === policyId);
+  const visibleDocuments = selectedPolicy?.required ?? documents.map((_, index) => index);
+
+  useEffect(() => {
+    if (!leaseFile) return;
+
+    const url = URL.createObjectURL(leaseFile);
+    setLeasePreviewUrl(url);
+    if (!leaseDialog.current?.open) leaseDialog.current?.showModal();
+
+    return () => URL.revokeObjectURL(url);
+  }, [leaseFile]);
 
   const toggleChecked = (index) => {
-    setChecked((items) => items.map((item, itemIndex) => itemIndex === index ? !item : item));
+    setChecked((items) => ({ ...items, [index]: !items[index] }));
+  };
+
+  const addFiles = (event) => {
+    const selectedFiles = Array.from(event.target.files);
+    event.target.value = "";
+    if (!selectedFiles.length || documentType === "") return;
+    const acceptedFiles = selectedFiles.filter((file) =>
+      /\.(pdf|jpe?g|png)$/i.test(file.name) && file.size > 0 && file.size <= 20 * 1024 * 1024
+    );
+    if (acceptedFiles.length) {
+      setChecked((items) => ({ ...items, [documentType]: true }));
+      setFiles((previous) => [...previous, ...acceptedFiles.map((file) => file.name)]);
+      if (Number(documentType) === leaseDocumentIndex) {
+        setLeaseFile(acceptedFiles.at(-1));
+        setConfirmedLeaseFields({});
+      }
+    }
+    const rejectedCount = selectedFiles.length - acceptedFiles.length;
+    onNotify(rejectedCount
+      ? `${acceptedFiles.length}개 추가, ${rejectedCount}개 제외. 20MB 이하의 PDF, JPG, PNG를 선택해 주세요.`
+      : "파일을 추가하고 해당 서류를 체크했습니다.");
+  };
+
+  const selectPolicy = (id) => {
+    setPolicyId(id);
+    setDocumentType("");
+  };
+
+  const saveChecklist = () => {
+    try {
+      window.sessionStorage.setItem("housingDocumentChecklist", JSON.stringify(checked));
+      onNotify("이 탭에 서류 준비 상태를 저장했습니다.");
+    } catch {
+      onNotify("서류 준비 상태를 저장할 수 없습니다.");
+    }
   };
 
   return (
     <section className="document-review">
       <style>{`
         .document-review{width:100%;max-width:1540px;margin:0 auto;color:#14233b}.document-hero{display:grid;grid-template-columns:1.05fr .75fr;min-height:280px;align-items:center;gap:35px}.document-kicker{margin:0 0 12px;color:#008b70;font-size:14px;font-weight:900;letter-spacing:.08em}.document-hero h1{margin:0;font-size:clamp(42px,4.1vw,65px);line-height:1.1;letter-spacing:-.07em}.document-hero h1 b{color:#008b70}.document-hero p{margin:22px 0 0;color:#5d6c7c;font-size:17px;line-height:1.6}.document-visual{display:grid;place-items:center}.document-visual svg{width:min(100%,420px);height:245px}.document-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:24px}.upload-zone{display:grid;place-items:center;min-height:350px;padding:35px;border:2px dashed #9cddca;border-radius:17px;background:linear-gradient(145deg,#fbfffe,#edf9f5);text-align:center}.upload-icon{display:grid;place-items:center;width:66px;height:66px;border-radius:50%;background:#e3f8f0;color:#008b70;font-size:35px}.upload-zone h2{margin:18px 0 8px;font-size:24px}.upload-zone p{margin:0;color:#687d78;font-size:14px;line-height:1.6}.upload-zone button,.save-checklist{margin-top:20px;padding:12px 17px;border:0;border-radius:8px;background:#008b70;color:#fff;font-weight:900}.upload-hint{display:flex;gap:13px;flex-wrap:wrap;justify-content:center;margin-top:22px;color:#71827e;font-size:11px}.document-benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:15px}.document-benefit{padding:17px;border:1px solid #dbeae5;border-radius:13px;background:#fff}.document-benefit i{color:#008b70;font-size:21px;font-style:normal}.document-benefit b,.document-benefit p{display:block}.document-benefit b{margin-top:9px;font-size:13px}.document-benefit p{margin:5px 0 0;color:#6c827c;font-size:11px;line-height:1.45}.document-checklist{padding:26px;border:1px solid #d8e8e3;border-radius:17px;background:#fff}.document-checklist-head{display:flex;justify-content:space-between;gap:15px;align-items:start}.document-checklist h2{margin:0;font-size:22px}.document-checklist-head button{border:0;background:transparent;color:#008b70;font-size:12px;font-weight:900}.document-item{display:flex;gap:13px;align-items:center;padding:15px 0;border-bottom:1px solid #e7efec}.document-item input{accent-color:#008b70}.document-item i{display:grid;place-items:center;width:33px;height:33px;border-radius:9px;background:#e8f8f2;color:#008b70;font-style:normal}.document-item span span{display:block;margin-top:4px;color:#71827d;font-size:11px}.review-history{display:flex;gap:16px;align-items:center;margin-top:24px;padding:19px 22px;border-radius:14px;background:#f2faf7}.review-history h3{margin:0;font-size:14px}.review-file{display:grid;gap:4px;flex:1;font-size:12px}.review-file span{color:#71817c}.review-status{padding:6px 9px;border-radius:999px;background:#dff6ed;color:#008b70;font-size:11px;font-weight:900}.review-history button{border:0;background:transparent;color:#008b70;font-weight:900}@media(max-width:900px){.document-hero,.document-grid{grid-template-columns:1fr}.document-visual{display:none}}@media(max-width:700px){.document-hero{min-height:auto;padding:15px 0 35px}.document-hero h1{font-size:42px}.document-benefits{grid-template-columns:1fr}.document-checklist{padding:20px}.review-history{display:block}.review-history>*{margin:7px 0}}
+        .document-grid{align-items:start}
+        .document-review .upload-zone{min-height:240px;padding:16px}
+        .upload-zone h2{margin:10px 0 5px;font-size:22px}
+        .upload-zone button,.upload-hint{margin-top:10px}
+        .document-checklist-head{position:relative;display:block}
+        .document-upload-column{min-width:0}
+        .document-upload-column .review-history{margin-top:16px;flex-wrap:wrap}
+        .document-policy-panel{display:flex;flex-direction:row-reverse;align-items:center;width:min(320px,100%);margin:14px 0 4px}
+        .document-checklist-head .document-policy-toggle{z-index:1;flex:0 0 36px;height:56px;margin-left:-1px;border:1px solid #d8e8e3;border-radius:8px;background:#fff;font-size:18px}
+        .document-policy-toggle[aria-expanded="false"] + .document-policy-list{visibility:hidden}
+        .document-policy-list{flex:1;min-width:0;max-height:300px;overflow-y:auto;padding:14px;border:1px solid #d8e8e3;border-radius:12px;background:#fff;box-shadow:0 10px 30px #14233b26}
+        @media(min-width:1840px){
+          .document-policy-panel{position:absolute;z-index:2;top:0;right:calc(-12px - min(240px,(100vw - 1540px) / 2 - 8px));width:min(292px,calc((100vw - 1540px) / 2 + 44px));margin:0}
+        }
+        .document-policy-list p{margin:7px 0;color:#5d6c7c;font-size:12px}
+        .document-checklist-head .document-policy-list button{display:block;width:100%;margin-top:6px;padding:11px 9px;border:1px solid #d8e8e3;border-radius:8px;text-align:left}
+        .document-policy-list button:hover,.document-policy-list button[aria-pressed="true"]{background:#e8f8f2}
+        .document-type{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;margin-top:10px}
+        .document-type select{max-width:100%;padding:8px;border:1px solid #9cddca;border-radius:8px;background:#fff}
+        .upload-zone .upload-icon{width:42px;height:42px;margin:0 auto;font-size:25px}
+        .review-file{min-width:0;overflow-wrap:anywhere}
+        .lease-review{width:min(1120px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:22px;border:1px solid #d8e8e3;border-radius:16px;background:#fff;color:#14233b;overflow-wrap:anywhere}
+        .lease-review::backdrop{background:#14233b45}
+        .lease-review-header{display:flex;align-items:start;justify-content:space-between;gap:12px}
+        .lease-review h2{margin:0;font-size:20px}
+        .lease-review p{margin:8px 0;color:#5d6c7c;font-size:14px}
+        .lease-review-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;margin-top:16px}
+        .lease-review-layout h3{margin:0 0 10px;font-size:16px}
+        .lease-preview{display:grid;place-items:center;min-height:240px;border:1px solid #d8e8e3;border-radius:10px;background:#f2faf7;overflow:hidden}
+        .lease-preview img{display:block;max-width:100%;max-height:min(560px,55dvh);object-fit:contain}
+        .lease-preview iframe{width:100%;height:min(560px,55dvh);border:0}
+        .lease-review-fields{display:grid;gap:8px}
+        .lease-review-field{display:flex;align-items:start;gap:9px;padding:11px;border:1px solid #d8e8e3;border-radius:8px;background:#f2faf7;font-size:14px}
+        .lease-review-field input{accent-color:#008b70}
+        .lease-review-field small{display:block;margin-top:5px;color:#5d6c7c}
+        .lease-review-button{padding:8px 12px;border:1px solid #d8e8e3;border-radius:8px;background:#fff;color:#008b70;font-weight:800}
+        @media(max-width:700px){.lease-review-layout{grid-template-columns:1fr}}
       `}</style>
-      <header className="document-hero"><div><p className="document-kicker">CONTRACT & DOCUMENT CHECK</p><h1>계약서와 신청 서류를<br />계약 전에 <b>점검하세요.</b></h1><p>계약서를 업로드하면 AI가 주요 항목을 분석하고, 누락된 내용이나<br />주의해야 할 조항을 알려드려요. 청년 지원 신청 서류도 함께 확인할 수 있어요.</p></div><div className="document-visual"><svg viewBox="0 0 420 250" aria-hidden="true"><path d="M46 202c42-74 108-110 184-84 56-56 133-41 161 15v50H46Z" fill="#e3f7f0" /><path d="M254 43h99l20 20-13 145H226l13-145Z" fill="#fff" stroke="#7fd5bd" strokeWidth="7" /><path d="M273 90h65M273 119h65M273 148h48" stroke="#c3e5da" strokeWidth="8" strokeLinecap="round" /><path d="m246 90 8 8 14-16m-22 38 8 8 14-16m-22 38 8 8 14-16" stroke="#38b98d" strokeWidth="5" fill="none" /><path d="m101 162 58-49 57 49v52h-115Z" fill="#fff" stroke="#008b70" strokeWidth="7" /><circle cx="307" cy="176" r="40" fill="#fff" stroke="#008b70" strokeWidth="9" /><path d="m288 176 12 12 24-28" stroke="#008b70" strokeWidth="8" fill="none" strokeLinecap="round" /></svg></div></header>
-      <div className="document-grid"><div><section className="upload-zone"><span className="upload-icon">⇧</span><h2>계약서 또는 서류 올리기</h2><p>이미지(PNG, JPG) 또는 PDF 파일을 업로드하면<br />계약 내용과 주요 항목을 자동으로 확인해 드려요.</p><button type="button" onClick={() => onNotify("목업 화면입니다. 실제 파일은 업로드되지 않습니다.")}>▱　파일 선택</button><div className="upload-hint"><span><b>지원 형식</b>　PDF, JPG, PNG</span><span><b>최대 용량</b>　20MB</span><span>여러 파일 업로드 가능</span></div></section><section className="document-benefits"><article className="document-benefit"><i>⌑</i><b>계약서 AI 분석</b><p>계약 내용을 요약하고 주의 조항을 알려드려요.</p></article><article className="document-benefit"><i>✓</i><b>서류 누락 확인</b><p>신청에 필요한 서류가 모두 준비됐는지 점검해요.</p></article><article className="document-benefit"><i>♢</i><b>정책 자격 연계</b><p>업로드한 정보로 신청 가능한 청년 지원을 안내해요.</p></article></section></div><section className="document-checklist"><div className="document-checklist-head"><h2>월세 계약·청년 지원 체크리스트</h2><button type="button" onClick={() => onNotify("정책별 필요 서류 안내를 준비하고 있습니다.")}>▣　필요 서류 안내 보기</button></div>{documents.map(([name, description, icon], index) => <label className="document-item" key={name}><input type="checkbox" checked={checked[index]} onChange={() => toggleChecked(index)} /><i>{icon}</i><span><b>{name}</b><span>{description}</span></span></label>)}<button className="save-checklist" type="button" onClick={() => onNotify("서류 준비 상태를 저장했습니다.")}>◉　준비 상태 저장</button></section></div>
-      <footer className="review-history"><h3>◷　최근 검토한 내역</h3><div className="review-file"><b>임대차계약서_대전유성구.pdf</b><span>2026.11.17 · 계약서 AI 분석 완료</span></div><span className="review-status">분석 완료</span><button type="button">전체 내역 보기　›</button></footer>
+      <header className="document-hero"><div><p className="document-kicker">CONTRACT & DOCUMENT CHECK</p><h1>계약서와 신청 서류를<br />계약 전에 <b>점검하세요.</b></h1><p>계약 서류와 청년 지원 정책별 필요 서류를 확인하고 준비 상태를 기록하세요.</p></div><div className="document-visual"><svg viewBox="0 0 420 250" aria-hidden="true"><path d="M46 202c42-74 108-110 184-84 56-56 133-41 161 15v50H46Z" fill="#e3f7f0" /><path d="M254 43h99l20 20-13 145H226l13-145Z" fill="#fff" stroke="#7fd5bd" strokeWidth="7" /><path d="M273 90h65M273 119h65M273 148h48" stroke="#c3e5da" strokeWidth="8" strokeLinecap="round" /><path d="m246 90 8 8 14-16m-22 38 8 8 14-16m-22 38 8 8 14-16" stroke="#38b98d" strokeWidth="5" fill="none" /><path d="m101 162 58-49 57 49v52h-115Z" fill="#fff" stroke="#008b70" strokeWidth="7" /><circle cx="307" cy="176" r="40" fill="#fff" stroke="#008b70" strokeWidth="9" /><path d="m288 176 12 12 24-28" stroke="#008b70" strokeWidth="8" fill="none" strokeLinecap="round" /></svg></div></header>
+      <div className="document-grid">
+        <div className="document-upload-column">
+          <section className="upload-zone">
+            <div>
+              <span className="upload-icon" aria-hidden="true">⇧</span>
+              <h2>계약서 또는 서류 올리기</h2>
+              <p>서류 종류를 선택하고 파일을 추가하면 해당 항목이 체크돼요.</p>
+              <label className="document-type">
+                서류 종류
+                <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
+                  <option value="">선택해 주세요</option>
+                  {visibleDocuments.map((index) => (
+                    <option key={index} value={index}>{documents[index][0]}</option>
+                  ))}
+                </select>
+              </label>
+              <input ref={fileInput} type="file" hidden multiple accept=".pdf,.jpg,.jpeg,.png" onChange={addFiles} />
+              <button type="button" onClick={() => {
+                if (documentType === "") {
+                  onNotify("먼저 서류 종류를 선택해 주세요.");
+                  return;
+                }
+                fileInput.current?.click();
+              }}>파일 선택</button>
+              <div className="upload-hint"><span>PDF, JPG, PNG · 파일당 최대 20MB</span></div>
+            </div>
+          </section>
+          {files.length > 0 && (
+            <section className="review-history" aria-label="첨부 파일 목록">
+              <h3>이번 화면에서 추가한 파일</h3>
+              <ul className="review-file">{files.map((name, index) => <li key={index}>{name}</li>)}</ul>
+              {leaseFile && <button type="button" onClick={() => leaseDialog.current?.showModal()}>계약서 검토 다시 열기</button>}
+            </section>
+          )}
+        </div>
+        <section className="document-checklist">
+          <div className="document-checklist-head">
+            <h2>{selectedPolicy ? selectedPolicy.title : "월세 계약·청년 지원"} 체크리스트</h2>
+            <div className="document-policy-panel">
+              <button
+                className="document-policy-toggle"
+                type="button"
+                aria-controls="document-policy-list"
+                aria-expanded={isPolicyOpen}
+                aria-label={isPolicyOpen ? "정책 목록 접기" : "정책 목록 펼치기"}
+                onClick={() => setIsPolicyOpen((open) => !open)}
+              >
+                {isPolicyOpen ? ">" : "<"}
+              </button>
+              <div className="document-policy-list" id="document-policy-list">
+                <strong>{area ? "조건에 맞는 정책" : "정책"}</strong>
+                <p>데모 정책 · 실제 신청 자격과 서류는 공고를 확인해 주세요.</p>
+                {area && <p>희망 지역 {area} {Number.isFinite(deposit) && `· 보증금 ${deposit.toLocaleString("ko-KR")}만 원`}</p>}
+                {area && !policies.length && <p>조건에 맞는 정책이 없어요.</p>}
+                {policies.map((policy) => (
+                  <button key={policy.id} type="button" aria-pressed={policyId === policy.id} onClick={() => selectPolicy(policy.id)}>
+                    {policy.title}
+                  </button>
+                ))}
+                {selectedPolicy && <button type="button" onClick={() => selectPolicy(null)}>기본 체크리스트 보기</button>}
+              </div>
+            </div>
+          </div>
+          {visibleDocuments.map((index) => {
+            const [name, description, icon] = documents[index];
+            return (
+              <label className="document-item" key={name}>
+                <input type="checkbox" checked={Boolean(checked[index])} onChange={() => toggleChecked(index)} />
+                <i>{icon}</i>
+                <span><b>{name}</b><span>{description}</span></span>
+              </label>
+            );
+          })}
+          <button className="save-checklist" type="button" onClick={saveChecklist}>준비 상태 저장</button>
+        </section>
+      </div>
+      <dialog ref={leaseDialog} className="lease-review" aria-labelledby="lease-review-title">
+        {leaseFile && (
+          <>
+            <header className="lease-review-header">
+              <div>
+                <h2 id="lease-review-title">임대차계약서 검토</h2>
+                <p>{leaseFile.name}</p>
+              </div>
+              <form method="dialog"><button className="lease-review-button" type="submit">닫기</button></form>
+            </header>
+            <div className="lease-review-layout">
+              <section>
+                <h3>첨부 원본</h3>
+                {leasePreviewUrl && (
+                  <div className="lease-preview">
+                    {/\.pdf$/i.test(leaseFile.name)
+                      ? <iframe src={leasePreviewUrl} title="임대차계약서 PDF 미리보기" />
+                      : <img src={leasePreviewUrl} alt="첨부한 임대차계약서 원본" />}
+                  </div>
+                )}
+                {leasePreviewUrl && <p><a href={leasePreviewUrl} target="_blank" rel="noopener noreferrer">원본 새 탭에서 열기</a></p>}
+              </section>
+              <section>
+                <h3>작성 내용 확인</h3>
+                <p>표시된 값은 OCR 화면 예시입니다. 원본과 대조한 항목을 직접 체크해 주세요.</p>
+                <div className="lease-review-fields">
+                  {leaseReviewExample.map(([label, value]) => (
+                    <label className="lease-review-field" key={label}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(confirmedLeaseFields[label])}
+                        onChange={(event) => {
+                          const { checked: isConfirmed } = event.target;
+                          setConfirmedLeaseFields((fields) => ({ ...fields, [label]: isConfirmed }));
+                        }}
+                      />
+                      <span><b>{label}</b><small>{value}</small></span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </>
+        )}
+      </dialog>
     </section>
   );
 }
