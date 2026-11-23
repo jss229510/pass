@@ -1,0 +1,124 @@
+/* Visual balance: neutral surfaces 60%, blue structure 30%, yellow CTAs 10%.
+   These are composition guidelines, not fixed layout widths. */
+:root {
+  --color-primary: #3B82F6;
+  --color-primary-rgb: 59 130 246;
+  --color-primary-strong: #1D4ED8;
+  --color-primary-hover: #2563EB;
+  --color-primary-tint: #BFDBFE;
+  --color-accent: #FFC83D;
+  --color-accent-hover: #F2B824;
+  --color-accent-soft: #FFF7DB;
+  --color-accent-ink: #765300;
+  --color-surface: #FFFFFF;
+  --color-background: #EEF4FF;
+  --color-surface-soft: #F7FAFF;
+  --color-border: #D9E5F8;
+  --color-text: #172B4D;
+  --color-text-secondary: #425877;
+  --color-text-muted: #596B85;
+  --color-cta-background: var(--color-accent);
+  --color-cta-hover: var(--color-accent-hover);
+  --color-cta-text: var(--color-text);
+}
+
+body { background: var(--color-background); }
+.housing-app { background: var(--color-surface); }
+.housing-app > .container:not(.landing-container):not(.auth-container) {
+  background: var(--color-surface-soft);
+  min-height: calc(100dvh - 76px);
+}
+.housing-app :where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.housing-app :where(input[type="checkbox"], input[type="radio"], input[type="range"], meter, progress) {
+  accent-color: var(--color-primary);
+}
+::selection { background: var(--color-accent); color: var(--color-text); }
+
+/* Blue carries the layout; yellow is reserved for the next meaningful action. */
+.housing-landing .hero-copy .eyebrow {
+  display: inline-block;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--color-background);
+  color: var(--color-primary-strong);
+}
+.housing-landing .hero-actions .start {
+  box-shadow: 0 6px 16px rgb(118 83 0 / 0.12);
+}
+.housing-landing .hero-actions .outline:hover { background: var(--color-background); }
+.housing-landing .policy-banner {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+}
+.housing-landing .policy-banner .policy-icon { color: var(--color-primary-strong); }
+.housing-landing .policy-banner b { color: var(--color-text); }
+.housing-landing .guide-entry-steps i {
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-primary-strong);
+}
+.recommendations-page .property-rank {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-primary-strong);
+}
+.living-cost-page .cost-remaining { background: var(--color-background); }
+.living-cost-page .cost-remaining b { color: var(--color-text); }
+.policy-library .pl-bookmark.is-saved {
+  color: var(--color-accent-ink);
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.my-page .next-action { background: var(--color-background); border-color: var(--color-border); }
+
+/* Shared CTA treatment covers buttons and telephone links, including hover. */
+.housing-app :is(button, a).cta-button {
+  background: var(--color-cta-background);
+  border: 1px solid var(--color-cta-background);
+  color: var(--color-cta-text);
+  font-weight: 800;
+}
+.housing-app :is(button, a).cta-button:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-cta-hover);
+  border-color: var(--color-cta-hover);
+  color: var(--color-cta-text);
+}
+.housing-app :is(button, a).cta-button:disabled,
+.housing-app :is(button, a).cta-button[aria-disabled="true"] {
+  background: var(--color-border);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.housing-app a.cta-button[href^="tel:"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+/* Keep text on the blue auth illustration readable, and inputs easy to scan. */
+.housing-app .auth-v2:before {
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary-strong));
+}
+.housing-app :where(input, textarea)::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+@media (max-width: 760px) {
+  .housing-app > .container:not(.landing-container):not(.auth-container) {
+    min-height: calc(100dvh - 56px);
+  }
+}
