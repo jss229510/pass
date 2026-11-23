@@ -15,7 +15,13 @@ const regionCenters = {
   "광주 북구": { lat: 35.1747, lng: 126.9121 },
 };
 
-function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange, roadviewRequest = 0, routeTarget = null }) {
+const escapeHtml = (text = "") => String(text).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+
+function createInfoContent(place) {
+  return `<div style="padding:9px 11px;min-width:150px;font-size:12px;line-height:1.5"><strong>${escapeHtml(place.name)}</strong>${place.address ? `<br /><span style="color:#64748b">${escapeHtml(place.address)}</span>` : ""}</div>`;
+}
+
+function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange, roadviewRequest = 0, routeTarget = null, }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -87,7 +93,7 @@ function KakaoMap({ regionName, categoryId, searchQuery, onPlacesChange, roadvie
             bounds.extend(position);
             const marker = new window.kakao.maps.Marker({ map, position, title: place.name });
             window.kakao.maps.event.addListener(marker, "click", () => {
-              infoWindow.setContent(`<div style="padding:9px 11px;min-width:150px;font-size:12px;line-height:1.5"><strong>${place.name}</strong>${place.address ? `<br /><span style="color:#64748b">${place.address}</span>` : ""}</div>`);
+              infoWindow.setContent(createInfoContent(place));
               infoWindow.open(map, marker);
             });
             return marker;

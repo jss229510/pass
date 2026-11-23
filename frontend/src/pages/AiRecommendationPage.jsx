@@ -277,7 +277,7 @@ function Agencies({ city, name }) {
     <ul className="maru-offices">{offices.map(([office, address, phone, page]) => <li key={office}>
       <strong>{office}</strong><p>{address}</p>
       <div className="maru-actions">
-        <a href={"tel:" + phone}>{phone}</a>
+        <a className="cta-button" href={"tel:" + phone}>{phone}</a>
         <a href={searchMap(address.split(",")[0])} target="_blank" rel="noreferrer">위치 보기 ↗</a>
         <a href={"https://irts.molit.go.kr/usr/cmn/main/home/RtecsLreaSearch.do?pageIndex=" + page} target="_blank" rel="noreferrer">등록 출처 ↗</a>
       </div>
@@ -345,7 +345,7 @@ function Detail({ row, rows, answers, onSelect, focus, onZoom }) {
       <a href="https://apply.lh.or.kr/" target="_blank" rel="noreferrer">LH청약플러스에서 공고 보기 ↗</a>
     </>}
     {tab === "주변 부동산" ? <Agencies city={answers[step.city].name} name={row.name} />
-      : <button type="button" className="maru-primary maru-agency-action" onClick={() => setTab("주변 부동산")}>주변 부동산 찾기 →</button>}
+      : <button type="button" className="maru-primary maru-agency-action cta-button" onClick={() => setTab("주변 부동산")}>주변 부동산 찾기 →</button>}
   </section>;
 }
 
@@ -458,7 +458,7 @@ export default function AiRecommendationPage({ onBack }) {
       <div><small>마루</small><h1>안녕하세요, 마루예요!</h1>
         <p>새 직장 근처에서 살 만한 동네를 함께 찾아봐요.</p>
         <p>출근 조건과 집 예산을 알려주면 통근 시간, 월세·전세 시세, 생활환경을 지도에서 비교할 수 있어요.</p>
-        <button type="button" className="maru-primary" onClick={() => setStarted(true)}>자, 그럼 시작해볼까요? →</button>
+        <button type="button" className="maru-primary cta-button" onClick={() => setStarted(true)}>자, 그럼 시작해볼까요? →</button>
       </div>
     </div> : <div className="maru-layout">
       <aside ref={conversationRef} className="maru-conversation" aria-label="마루와 대화">
@@ -480,7 +480,7 @@ export default function AiRecommendationPage({ onBack }) {
           <div className="maru-actions maru-choices">{question.choices.map(choice => <button type="button" key={choice} onClick={() => submit(choice)}>{choice}</button>)}</div>
           <form className="maru-input" onSubmit={event => { event.preventDefault(); submit(input); }}>
             <input value={input} onChange={event => setInput(event.target.value)} placeholder={question.placeholder} aria-label="마루에게 답하기" maxLength={140} />
-            <button className="maru-primary" type="submit">{reviewIndex === null ? "답하기" : "답변 수정"}</button>
+            <button className="maru-primary cta-button" type="submit">{reviewIndex === null ? "답하기" : "답변 수정"}</button>
           </form>
           {reviewIndex !== null && <div className="maru-actions maru-choices"><button type="button" onClick={nextReviewedStep}>기존 답변으로 다음 →</button></div>}
           {error && <p className="maru-reason" role="status">{error}</p>}
