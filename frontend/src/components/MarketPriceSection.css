@@ -1,12 +1,12 @@
 .market-section {
-  --market-green: #0b7a62;
-  --market-green-soft: #e6f5ef;
+  --market-green: var(--color-primary-strong);
+  --market-green-soft: var(--color-surface-soft);
   --market-up: #e5484d;
   --market-up-soft: #fdecec;
   --market-down: #3a6fdc;
   --market-down-soft: #e8effc;
-  --market-line: #e3ebe9;
-  --market-muted: #6f817d;
+  --market-line: var(--color-border);
+  --market-muted: var(--color-text-muted);
   margin-top: 32px;
 }
 
@@ -22,7 +22,7 @@
   gap: 14px;
   padding: 14px 20px;
   border-radius: 12px;
-  background: linear-gradient(90deg, #edf9f5, #f7fcfa);
+  background: linear-gradient(90deg, var(--color-background), var(--color-surface-soft));
 }
 
 .market-insight-icon {
@@ -46,7 +46,7 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: #34474a;
+  color: var(--color-text-secondary);
 }
 
 .market-insight b {
@@ -127,8 +127,8 @@
 }
 
 .market-search:focus-within {
-  border-color: #6cc2ad;
-  box-shadow: 0 0 0 3px #36ae9922;
+  border-color: var(--color-primary-tint);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.14);
 }
 
 .market-search-icon {
@@ -183,7 +183,7 @@
   border: 1px solid var(--market-line);
   border-radius: 10px;
   background: #fff;
-  box-shadow: 0 14px 34px #174b3b1f;
+  box-shadow: 0 14px 34px rgb(var(--color-primary-rgb) / 0.12);
 }
 
 .market-search-list button {
@@ -200,7 +200,7 @@
 .market-search-list button:hover,
 .market-search-list button:focus-visible {
   outline: 0;
-  background: #f1f8f6;
+  background: var(--color-surface-soft);
   color: var(--market-green);
 }
 
@@ -234,8 +234,8 @@
 }
 
 .market-card:hover {
-  border-color: #a6d8cb;
-  box-shadow: 0 8px 22px #174b3b12;
+  border-color: var(--color-primary-tint);
+  box-shadow: 0 8px 22px rgb(var(--color-primary-rgb) / 0.10);
 }
 
 .market-card-head {

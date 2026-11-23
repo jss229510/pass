@@ -29,13 +29,13 @@ function LandingPage({ properties, onStart, onNavigate, onPropertyDetail }) {
       `}</style>
 
       <div className="landing-hero">
-        <div className="hero-copy"><p className="eyebrow">AI 이사 의사결정 플랫폼</p><h1>가격만 보지 말고,<br /><b>살기 좋은 동네를 고르세요.</b></h1><p className="desc">AI가 월세·관리비뿐 아니라 통근, 치안, 소음, 날씨, 생활 인프라까지 분석합니다. 계약서 확인 질문과 청년지원, 입주 일정도 하나의 이사 계획으로 이어집니다.</p><div className="hero-actions"><button className="start cta-button" onClick={onStart}>맞춤 분석 시작하기</button><button className="outline" onClick={() => onNavigate("property-search")}>매물 추천</button></div></div>
+        <div className="hero-copy"><p className="eyebrow">AI 이사 의사결정 플랫폼</p><h1>가격만 보지 말고,<br /><b>살기 좋은 동네를 고르세요.</b></h1><p className="desc">AI가 월세·관리비뿐 아니라 통근, 치안, 소음, 날씨, 생활 인프라까지 분석합니다. 계약서 확인 질문과 청년지원, 입주 일정도 하나의 이사 계획으로 이어집니다.</p><div className="hero-actions"><button className="start cta-button" onClick={onStart}>맞춤 분석 시작하기</button><button className="outline" onClick={() => onNavigate("property-map-search")}>매물 검색</button></div></div>
       </div>
       <main className="landing-content">
         <style>{`.policy-icon{display:grid;place-items:center;width:52px;height:52px;color:var(--color-primary-strong)}.policy-icon svg{width:42px;height:42px}`}</style>
         <div className="content-top">
           <section className="candidate-section">
-            <div className="candidate-heading"><h2>AI가 추천한 매물</h2><button className="candidate-shortcut" type="button" onClick={() => onNavigate("property-recommendations")}>바로가기</button></div>
+            <div className="candidate-heading"><h2>AI가 추천한 매물</h2><button className="candidate-shortcut" type="button" onClick={() => onNavigate("property-map-search")}>지도에서 보기</button></div>
             <div className="area-list">{properties.map((property, index) => <button className="area-card" type="button" key={property.id} onClick={() => onPropertyDetail(property)}><img src={areaImages[index % areaImages.length]} alt="" /><div><b>{property.title}</b><span>{property.location} · {property.rent}</span></div></button>)}</div>
           </section>
           <section><div className="easy-title"><h2>AI가 이사 결정을 돕는 세 가지</h2></div><div className="easy-list"><div className="easy-item"><i className="easy-icon"><FeatureIcon type="environment" /></i><div><b>주변환경지수 분석</b><span>교통·치안·소음·날씨·편의시설을<br />점수로 비교해요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="contract" /></i><div><b>계약서 질문 생성</b><span>관리비 등 확인할 질문을<br />계약서 내용에 맞춰 만들어요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="move" /></i><div><b>입주 계획 정리</b><span>청년지원·필수 서류·입주일까지<br />해야 할 일을 정리해요.</span></div></div></div></section>

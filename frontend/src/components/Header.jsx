@@ -4,11 +4,8 @@ import NotificationMenu from "./NotificationMenu";
 function Header({ activeStep, onNavigate, onNotify }) {
   const menuItems = [
     ["맞춤 분석", "custom-analysis"],
-    ["매물 추천", "property-search"],
-    ["매물 비교", "property-recommendations"],
     ["매물 검색", "property-map-search"],
     ["주거지원 정책", "support"],
-    ["생활비 분석", "living-cost"],
     ["서류 검토", "documents"],
     ["이용 가이드", "guide"],
     ["고객센터", "customer-center"],

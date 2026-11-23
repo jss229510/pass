@@ -7,22 +7,21 @@ import ConditionsPage from "./pages/ConditionsPage";
 import CustomerCenterPage from "./pages/CustomerCenterPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import CommunityQnaPage from "./pages/CommunityQnaPage";
+import ContractsPage from "./pages/ContractsPage";
 import GuidePage from "./pages/GuidePage";
 import LandingPage from "./pages/LandingPage";
-import LivingCostPage from "./pages/LivingCostPage";
 import MyPage from "./pages/MyPage";
-import PropertyRecommendationsPage from "./pages/PropertyRecommendationsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
-import PropertyComparePage from "./pages/PropertyComparePage";
 import PropertyMapSearchPage from "./pages/PropertyMapSearchPage";
 import SupportPage from "./pages/SupportPage";
 
-const availableSteps = new Set(["landing", "login", "signup", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "mypage", "living-cost", "guide", "customer-center", "community-qna"]);
+const availableSteps = new Set(["landing", "login", "signup", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "contracts", "mypage", "notifications", "guide", "customer-center", "community-qna"]);
 const legacyStepMap = {
   home: "property-search",
   "ai-recommend": "custom-analysis",
-  recommend: "property-recommendations",
-  compare: "property-compare",
+  recommend: "property-map-search",
+  compare: "property-map-search",
   detail: "property-detail",
 };
 
@@ -40,7 +39,6 @@ function getStoredProperty() {
 function App() {
   const [step, setStep] = useState(getStoredStep);
   const [selectedProperty, setSelectedProperty] = useState(getStoredProperty);
-  const [comparisonProperties, setComparisonProperties] = useState(properties.slice(0, 2));
   const [budget, setBudget] = useState("70");
   const [recommendationStep, setRecommendationStep] = useState(1);
   const [recommendationResetVersion, setRecommendationResetVersion] = useState(0);
@@ -65,11 +63,6 @@ function App() {
     setStep("property-detail");
   };
 
-  const openPropertyCompare = (propertyIds) => {
-    setComparisonProperties(properties.filter((property) => propertyIds.includes(property.id)));
-    setStep("property-compare");
-  };
-
   const saveRecommendationAndExit = () => {
     setStep("landing");
     notify(`${recommendationStep}단계 진행 내용을 저장했습니다.`);
@@ -87,20 +80,19 @@ function App() {
 
   return (
     <div className="housing-app">
-      {!isAuthPage && <Header activeStep={step === "community-qna" ? "customer-center" : step === "property-compare" || step === "property-detail" ? "property-recommendations" : step} onNavigate={setStep} onNotify={notify} />}
+      {!isAuthPage && <Header activeStep={step === "community-qna" ? "customer-center" : step} onNavigate={setStep} onNotify={notify} />}
       <main className={step === "landing" ? "container landing-container" : isAuthPage ? "container auth-container" : "container"}>
         {step === "landing" && <LandingPage properties={properties} onStart={() => setStep("custom-analysis")} onNavigate={setStep} onPropertyDetail={openPropertyDetail} />}
         {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep("property-search")} />}
         {step === "property-search" && <ConditionsPage budget={budget} setBudget={setBudget} currentStep={recommendationStep} onStepChange={setRecommendationStep} resetVersion={recommendationResetVersion} onSaveAndExit={saveRecommendationAndExit} onRequestReset={() => setIsRecommendationResetOpen(true)} onAiRecommend={() => setStep("custom-analysis")} onSupport={() => setStep("support")} onNotify={notify} />}
-        {step === "custom-analysis" && <AiRecommendationPage budget={budget} onBack={() => setStep("property-search")} onPropertyRecommendations={() => setStep("property-recommendations")} />}
-        {step === "property-recommendations" && <PropertyRecommendationsPage budget={budget} properties={properties} onDetail={openPropertyDetail} onCompare={openPropertyCompare} onBack={() => setStep("property-search")} onNotify={notify} />}
-        {step === "property-compare" && <PropertyComparePage properties={comparisonProperties} onBack={() => setStep("property-recommendations")} onDetail={openPropertyDetail} />}
-        {step === "property-detail" && <PropertyDetailPage property={selectedProperty} onBack={() => setStep("property-recommendations")} onNext={() => setStep("support")} />}
-        {step === "property-map-search" && <PropertyMapSearchPage />}
-        {step === "support" &&<SupportPage onDocuments={() => setStep("documents")} />}
-        {step === "documents" && <DocumentsPage onNotify={notify} />}
+        {step === "custom-analysis" && <AiRecommendationPage budget={budget} onBack={() => setStep("property-search")} onPropertyRecommendations={() => setStep("property-map-search")} />}
+        {step === "property-detail" && <PropertyDetailPage property={selectedProperty} onBack={() => setStep("property-map-search")} onNext={() => setStep("support")} />}
+        {(step === "property-map-search" || step === "property-recommendations" || step === "property-compare") && <PropertyMapSearchPage />}
+        {step === "support" && <SupportPage onDocuments={() => setStep("documents")} />}
+        {step === "documents" && <DocumentsPage onNotify={notify} onContracts={() => setStep("contracts")} />}
+        {step === "contracts" && <ContractsPage onNavigate={setStep} />}
         {step === "mypage" && <MyPage onNavigate={setStep} onNotify={notify} />}
-        {step === "living-cost" && <LivingCostPage onNavigate={setStep} />}
+        {step === "notifications" && <NotificationsPage />}
         {step === "guide" && <GuidePage onNavigate={setStep} />}
         {step === "customer-center" && <CustomerCenterPage onNavigate={setStep} onNotify={notify} />}
         {step === "community-qna" && <CommunityQnaPage onNavigate={setStep} onNotify={notify} />}

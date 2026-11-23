@@ -1,0 +1,11 @@
+.my-condition-insights{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.my-condition-insights article,.my-condition-recommend{padding:14px;border:1px solid #dcece6;border-radius:10px;background:#f8fcfa}
+.my-condition-insights span,.my-condition-insights b,.my-condition-insights small,.my-condition-recommend span,.my-condition-recommend b,.my-condition-recommend small{display:block}
+.my-condition-insights span,.my-condition-recommend span{color:#70877f;font-size:11px}
+.my-condition-insights b,.my-condition-recommend b{margin-top:5px;color:#1b3d32;font-size:13px}
+.my-condition-insights small,.my-condition-recommend small{margin-top:5px;color:#71867f;font-size:11px;line-height:1.4}
+.my-condition-insights i{display:block;overflow:hidden;height:6px;margin-top:10px;border-radius:999px;background:#dfece7}
+.my-condition-insights em{display:block;height:100%;border-radius:inherit;background:#008b70}
+.my-condition-recommend{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:12px;background:#effaf6}
+.my-condition-recommend button{flex:none;padding:9px 11px;border:1px solid #008b70;border-radius:8px;background:#fff;color:#008b70;font-size:12px;font-weight:900}
+@media(max-width:560px){.my-condition-insights{grid-template-columns:1fr}.my-condition-recommend{display:block}.my-condition-recommend button{width:100%;margin-top:12px}}

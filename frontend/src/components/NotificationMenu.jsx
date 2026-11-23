@@ -5,7 +5,7 @@ import "./NotificationMenu.css";
 
 const initialNotifications = [
   { id: "market-mapo", type: "market", title: "관심 지역 시세 변동", message: "서울 마포구 원룸 월세 중위값이 1년간 6.2% 올랐어요.", time: "2시간 전", step: "landing", read: false },
-  { id: "property-gungdong", type: "property", title: "찜한 매물 가격 변경", message: "'궁동 풀옵션 원룸' 월세가 2만원 내렸어요.", time: "5시간 전", step: "property-recommendations", read: false },
+  { id: "property-gungdong", type: "property", title: "찜한 매물 가격 변경", message: "'궁동 풀옵션 원룸' 월세가 2만원 내렸어요.", time: "5시간 전", step: "property-map-search", read: false },
   { id: "support-rent", type: "support", title: "청년 월세 지원 마감 임박", message: "청년 월세 한시 특별지원 신청이 12월 5일에 마감돼요.", time: "어제", step: "support", read: false },
   { id: "document-review", type: "document", title: "서류 검토 완료", message: "계약서 검토 결과가 준비됐어요. 확인할 질문이 3개 있어요.", time: "3일 전", step: "documents", read: true },
 ];
