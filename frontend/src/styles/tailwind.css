@@ -1,0 +1,64 @@
+/*
+ * Tailwind v4 진입점. main.jsx에서 다른 CSS보다 마지막에 불러온다.
+ *
+ * - preflight(기본 리셋)는 넣지 않는다. 기존 화면은 index.css의 자체 리셋에 맞춰져 있어서,
+ *   preflight를 넣으면 제목·버튼·이미지 등 기존 UI의 기본 모양이 바뀐다.
+ *   그래서 Tailwind로 만드는 버튼·입력칸은 배경·테두리를 클래스로 직접 지정한다.
+ * - utilities는 레이어 없이 불러온다. 레이어에 넣으면 index.css의 `button{font:inherit}` 같은
+ *   레이어 없는 규칙이 우선순위에서 이겨서 text-*, font-* 클래스가 버튼에 먹지 않는다.
+ * - 색 토큰은 theme.css의 기존 변수를 가리키므로 테마를 바꾸면 함께 바뀐다.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source("..");
+
+/*
+ * 기존 CSS가 이미 쓰는 클래스 이름은 Tailwind 유틸리티로 만들지 않는다.
+ * - container: App.jsx의 페이지 래퍼(Tailwind 버전은 width·max-width를 바꿔 레이아웃이 깨진다)
+ * - outline:   LandingPage의 보조 버튼(Tailwind 버전은 1px 외곽선을 그린다)
+ * - filter:    index.css의 필터 바
+ * focus:outline-2 처럼 접두어·값이 붙은 형태는 영향 없다.
+ */
+@source not inline("container outline filter");
+
+@theme inline {
+  --font-sans: Arial, "Noto Sans KR", sans-serif;
+
+  --color-brand-50: var(--color-background);
+  --color-brand-100: #dbeafe;
+  --color-brand-200: var(--color-primary-tint);
+  --color-brand-500: var(--color-primary);
+  --color-brand-600: var(--color-primary-strong);
+  --color-brand-700: #1e40af;
+
+  /* 본문 글자색. ink-500은 흰 배경 5.4:1, brand-100 배경 위에서는 4.45:1이라 그때는 ink-700을 쓴다. */
+  --color-ink-900: var(--color-text);
+  --color-ink-700: var(--color-text-secondary);
+  --color-ink-500: var(--color-text-muted);
+
+  /* border-strong은 입력칸 경계용으로 흰 배경 대비 3.3:1(비텍스트 기준 3:1 이상). */
+  --color-border-subtle: var(--color-border);
+  --color-border-strong: #7c8fab;
+
+  /* 오류 문구는 danger-600(5.2:1). danger-500은 아이콘·테두리용. */
+  --color-danger-50: #fdedee;
+  --color-danger-500: #e5484d;
+  --color-danger-600: #c9353a;
+}
+
+/* 온보딩 질문 전환: 나갈 때 250ms, 들어올 때 300ms. 사용처에서 motion-reduce:animate-none을 함께 쓴다. */
+@theme {
+  --animate-ob-enter-up: ob-enter-up 300ms cubic-bezier(0.2, 0, 0, 1) both;
+  --animate-ob-enter-down: ob-enter-down 300ms cubic-bezier(0.2, 0, 0, 1) both;
+  --animate-ob-leave-up: ob-leave-up 250ms ease-in both;
+  --animate-ob-leave-down: ob-leave-down 250ms ease-in both;
+  --animate-ob-draw: ob-draw 600ms cubic-bezier(0.65, 0, 0.35, 1) both;
+  --animate-ob-pop: ob-pop 300ms ease-out both;
+
+  @keyframes ob-enter-up { from { opacity: 0; transform: translateY(16px); } }
+  @keyframes ob-enter-down { from { opacity: 0; transform: translateY(-16px); } }
+  @keyframes ob-leave-up { to { opacity: 0; transform: translateY(-12px); } }
+  @keyframes ob-leave-down { to { opacity: 0; transform: translateY(12px); } }
+  /* pathLength="1"인 SVG 경로를 그린다 */
+  @keyframes ob-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes ob-pop { from { opacity: 0; transform: scale(0.85); } }
+}

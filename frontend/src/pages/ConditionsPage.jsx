@@ -56,7 +56,8 @@ export function loadDraft() {
 
 function ConditionsPage({ draft, setDraft, budget, setBudget, currentStep, onStepChange, resetVersion, onSaveAndExit, onRequestReset, onAiRecommend, onSupport, onNotify }) {
   const [checkedItems, setCheckedItems] = useState({});
-  const isInitialResetVersion = useRef(true);
+  // 직전에 처리한 초기화 번호. StrictMode가 effect를 두 번 실행해도 같은 번호면 건너뛴다.
+  const handledResetVersion = useRef(resetVersion);
   const { income, deposit, roomType, desiredArea, workLocation, commute, selectedProperty, preferences } = draft;
   const steps = ["매물 조건 입력", "매물 추천 결과", "매물 비용 비교", "지원 정책·서류 확인"];
   const recommendations = buildDemoRecommendations(desiredArea, budget, deposit, roomType, preferences);
@@ -96,10 +97,8 @@ function ConditionsPage({ draft, setDraft, budget, setBudget, currentStep, onSte
   };
 
   useEffect(() => {
-    if (isInitialResetVersion.current) {
-      isInitialResetVersion.current = false;
-      return;
-    }
+    if (handledResetVersion.current === resetVersion) return;
+    handledResetVersion.current = resetVersion;
     setDraft(defaultDraft);
     setCheckedItems({});
     window.sessionStorage.removeItem(draftStorageKey);

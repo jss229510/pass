@@ -27,6 +27,8 @@
 // - 전세면 rentBudget은 null이다.
 // - 항목별 지출을 입력하면 total은 항목 합계로 다시 계산한다.
 
+import { REGIONS } from "../data/regions";
+
 export const STORAGE_KEYS = {
   draft: "onboardingDraft",
   conditions: "moveConditions",
@@ -270,15 +272,59 @@ export const loadMoveConditions = () => {
   return isPlainObject(saved) ? normalizeAnswers(saved) : null;
 };
 
-export const saveMoveConditions = (answers) => writeJson(STORAGE_KEYS.conditions, normalizeAnswers(answers));
+/** 이사 조건 저장. 매물 추천 화면이 쓰는 초안에도 같은 값을 반영한다. */
+export const saveMoveConditions = (answers) => {
+  const normalized = normalizeAnswers(answers);
+  const ok = writeJson(STORAGE_KEYS.conditions, normalized);
+  if (ok) syncRecommendationDraft(normalized);
+  return ok;
+};
 
 /**
- * ConditionsPage에서 일부 항목만 고칠 때.
+ * 마이페이지 "내 이사 조건"에서 일부 항목만 고칠 때.
  * @returns {{ ok: boolean, answers: object }} ok가 false여도 answers는 화면에 반영할 값이다.
  */
 export const updateMoveConditions = (patch) => {
   const answers = normalizeAnswers({ ...(loadMoveConditions() ?? createEmptyAnswers()), ...patch });
-  return { ok: writeJson(STORAGE_KEYS.conditions, answers), answers };
+  return { ok: saveMoveConditions(answers), answers };
+};
+
+// 매물 추천 화면(ConditionsPage) 연동 ---------------------------------
+// 매물 추천은 sessionStorage의 별도 초안을 "대전 유성구", "2룸" 같은 짧은 표기로 쓴다.
+
+const RECOMMENDATION_DRAFT_KEY = "housingRecommendationDraft";
+const SHORT_SIDO = new Map(REGIONS.map((region) => [region.sido, region.short[0]]));
+const RECOMMENDATION_ROOM_TYPE = { 원룸: "원룸", "1.5룸": "1.5룸", 투룸: "2룸" };
+
+/** "대전광역시 유성구" → "대전 유성구" */
+export const formatRegionShort = (region) =>
+  region?.sido ? [SHORT_SIDO.get(region.sido) ?? region.sido, region.sigungu].filter(Boolean).join(" ") : "";
+
+/** 이사 조건 → 매물 추천 초안에 덮어쓸 값(입력한 항목만) */
+export const toRecommendationDraft = (answers) => {
+  const a = normalizeAnswers(answers);
+  const draft = {
+    // 재난 노출 가중치는 매물 추천의 "안전" 항목으로 넘긴다
+    preferences: { 교통: a.weights.transport, 주거비: a.weights.housingCost, 생활편의: a.weights.amenities, 안전: a.weights.disaster },
+  };
+  if (a.depositBudget !== null) draft.deposit = String(a.depositBudget);
+  if (a.roomTypes.length) draft.roomType = RECOMMENDATION_ROOM_TYPE[a.roomTypes[0]];
+  if (a.targetRegions.length) draft.desiredArea = formatRegionShort(a.targetRegions[0]);
+  if (a.workRegion) draft.workLocation = formatRegionShort(a.workRegion);
+  if (a.maxCommute !== null) draft.commute = a.maxCommute;
+  if (a.income) draft.income = String(a.income.amount);
+  return draft;
+};
+
+const syncRecommendationDraft = (answers) => {
+  try {
+    const storage = typeof window === "undefined" ? null : window.sessionStorage;
+    if (!storage) return;
+    const current = JSON.parse(storage.getItem(RECOMMENDATION_DRAFT_KEY) ?? "null");
+    storage.setItem(RECOMMENDATION_DRAFT_KEY, JSON.stringify({ ...(isPlainObject(current) ? current : {}), ...toRecommendationDraft(answers) }));
+  } catch {
+    // 매물 추천 초안 반영은 부가 기능이라 실패해도 이사 조건 저장은 성공으로 본다
+  }
 };
 
 // 온보딩 완료 여부 --------------------------------------------------
@@ -307,9 +353,6 @@ export const completeOnboarding = (answers) => {
   clearOnboardingDraft();
   return true;
 };
-
-/** @deprecated 기존 OnboardingPage 초안 호환용. OnboardingPage 조립 단계에서 제거한다. */
-export const finishOnboarding = completeOnboarding;
 
 /** 개발·테스트용: 온보딩을 처음부터 다시 보게 한다. */
 export const resetOnboarding = () => [STORAGE_KEYS.draft, STORAGE_KEYS.conditions, STORAGE_KEYS.done].every(removeKey);

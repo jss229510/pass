@@ -5,6 +5,9 @@ import NotificationsPage from "./NotificationsPage";
 import "../styles/my-condition-insights.css";
 import FilterBar from "../features/mypage/FilterBar";
 import { links } from "../links";
+import { WEIGHT_LABELS, formatRegionShort, loadMoveConditions } from "../utils/conditionsStore";
+import { SKIPPED, buildConditionRows } from "../features/onboarding/conditionRows";
+import { formatManwon } from "../features/onboarding/format";
 import "../styles/my-dashboard.css";
 import "../styles/favorite-regions.css";
 import "../styles/compare-history.css";
@@ -13,17 +16,6 @@ import "../styles/move-checklist.css";
 import "../styles/account-settings.css";
 
 const menus = [["dashboard", "내 대시보드", FaHome], ["conditions", "내 이사 조건", FaMapMarkerAlt], ["favorites", "관심 목록", FaHeart], ["history", "비교 기록", FaChartBar], ["documents", "계약서 분석 내역", FaFileAlt], ["checklist", "이사 체크리스트", FaCheckCircle], ["alerts", "알림 설정", FaBell], ["account", "계정 정보", FaUserCircle]];
-const defaultConditionDraft = { currentResidence: "서울 강서구", desiredArea: "대전 유성구", monthlyRent: "70", roomType: "원룸", workLocation: "대전 유성구", commute: "45", preferences: { 교통: 4, 주거비: 4, 생활편의: 3, 안전: 2 } };
-
-function loadConditionDraft() {
-  try {
-    const saved = JSON.parse(window.sessionStorage.getItem("housingRecommendationDraft"));
-    return saved ? { ...defaultConditionDraft, ...saved, monthlyRent: saved.monthlyRent ?? "70" } : defaultConditionDraft;
-  } catch {
-    return defaultConditionDraft;
-  }
-}
-
 const defaultUserProfile = { name: "김청년", email: "youth@example.com", income: "250" };
 
 function loadUserProfile() {
@@ -124,19 +116,55 @@ function CompareHistory({ onNavigate }) {
   return <section className="compare-history"><header className="compare-history-head"><h2>비교 기록</h2><p>저장한 지역 비교를 다시 열어볼 수 있어요.</p></header><div className="compare-history-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름·지역 검색" aria-label="비교 기록 검색" /><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="비교 기록 정렬"><option value="recent">최근 비교순</option><option value="name">이름순</option></select><div className="compare-room-filter">{["전체", "원룸", "1.5룸", "투룸"].map((item) => <button type="button" className={room === item ? "active" : ""} key={item} onClick={() => setRoom(item)}>{item}</button>)}</div></div><div className="compare-history-list">{visible.map((item) => <article className="compare-history-card" key={item.id}><div className="compare-history-top"><div><h3>{item.name}</h3><div className="compare-region-chips">{item.regions.map((region) => <span className={region.type === "후보" ? "candidate" : ""} key={region.name}>{region.name} · {region.type}</span>)}</div></div><small className="compare-history-date">비교 일시 {item.date}</small></div><div className="compare-history-details"><p><b>{item.room} · {item.deal}</b><br />{item.summary}</p><span className="compare-history-badge">{item.label}</span><a className="dashboard-detail" href={links.compare(item.ids, item.room, item.deal)} target="_blank" rel="noreferrer">다시 보기 →</a></div><div className="compare-history-actions"><button type="button" onClick={() => setRenameTarget(item)}>이름 변경</button><button type="button" onClick={() => setDeleteTarget(item)}>삭제</button></div><div className="compare-history-expand"><button type="button" onClick={() => setExpanded(expanded === item.id ? null : item.id)}>{expanded === item.id ? "당시 중위값 접기 −" : "당시 중위값 보기 +"}</button>{expanded === item.id && <><table className="compare-mini-table"><thead><tr><th>지역</th><th>원룸</th><th>1.5룸</th><th>투룸</th></tr></thead><tbody>{item.values.map((value) => <tr key={value[0]}>{value.map((cell) => <td key={cell}>{cell}</td>)}</tr>)}</tbody></table><p className="compare-history-note">* 당시 수집한 값이므로 현재 중위값과 다를 수 있어요.</p></>}</div></article>)}</div>{renameTarget && <div className="compare-modal-backdrop"><form className="compare-modal" onSubmit={(event) => { event.preventDefault(); const name = new FormData(event.currentTarget).get("name")?.toString().trim(); if (name) { setItems(items.map((item) => item.id === renameTarget.id ? { ...item, name } : item)); setRenameTarget(null); } }}><h3>비교 이름 변경</h3><input name="name" defaultValue={renameTarget.name} /><div><button type="button" onClick={() => setRenameTarget(null)}>취소</button><button type="submit">저장</button></div></form></div>}{deleteTarget && <div className="compare-modal-backdrop"><section className="compare-modal"><h3>비교 기록을 삭제할까요?</h3><p>{deleteTarget.name} 기록만 삭제됩니다.</p><div><button type="button" onClick={() => setDeleteTarget(null)}>취소</button><button type="button" className="danger" onClick={remove}>삭제</button></div></section></div>}{toast && <div className="compare-toast" role="status">{toast.text}<button type="button" onClick={() => { toast.undo(); setToast(null); }}>실행 취소</button></div>}</section>;
 }
 
-function ConditionCostSnapshot({ condition, profile }) {
-  const rent = Number(condition.monthlyRent) || 70;
+function ConditionCostSnapshot({ conditions, profile }) {
+  const rent = conditions.dealType === "전세" ? 0 : conditions.rentBudget ?? 0;
   const maintenance = 7;
-  const transport = Number(condition.commute) <= 30 ? 6 : Number(condition.commute) <= 50 ? 8 : 11;
-  const total = rent + maintenance + 40 + transport + 26;
-  const income = Number(profile.income) || 250;
+  const commute = conditions.maxCommute;
+  const transport = commute === null ? 8 : commute <= 30 ? 6 : commute <= 50 ? 8 : 11;
+  // 월 평균 지출을 입력했으면(식비·교통비·통신비·구독 포함) 그 값을, 아니면 기본 추정치를 쓴다
+  const livingInput = conditions.monthlyExpense?.total ?? null;
+  const living = livingInput ?? 40 + transport + 26;
+  const total = rent + maintenance + living;
+  const income = conditions.income?.amount || Number(profile.income) || 250;
   const rate = Math.min(Math.round((total / income) * 100), 100);
-  return <section className="condition-cost-snapshot"><div><h3>내 조건 기반 간이 생활비</h3><p>계정 정보의 월 소득과 현재 월세·통근 조건을 기준으로 계산했어요.</p><div className="condition-cost-breakdown"><span>주거비<b>{rent + maintenance}만원</b></span><span>교통비<b>{transport}만원</b></span><span>예상 총지출<b>{total}만원</b></span></div></div><div className="condition-cost-rate" style={{ "--rate": rate }}><b>{rate}%</b><small>지출 비율</small></div></section>;
+  const basis = `${conditions.income ? "입력한 월 소득" : "계정 정보의 월 소득"}과 ${livingInput !== null ? "입력한 월 지출·월세" : "월세·통근 조건"}을 기준으로 계산했어요.`;
+  return <section className="condition-cost-snapshot"><div><h3>내 조건 기반 간이 생활비</h3><p>{basis}</p><div className="condition-cost-breakdown"><span>주거비<b>{rent + maintenance}만원</b></span><span>{livingInput !== null ? "생활비" : "교통비"}<b>{livingInput !== null ? living : transport}만원</b></span><span>예상 총지출<b>{total}만원</b></span></div></div><div className="condition-cost-rate" style={{ "--rate": rate }}><b>{rate}%</b><small>지출 비율</small></div></section>;
 }
 
-function ConditionsDashboard({ conditionDraft, setConditionDraft, isEditing, setIsEditing, userProfile, onNavigate, onNotify }) {
-  const save = () => { window.sessionStorage.setItem("housingRecommendationDraft", JSON.stringify(conditionDraft)); setIsEditing(false); onNotify("이사 조건을 저장했습니다."); };
-  return <section className="my-panel my-conditions-panel"><div className="my-condition-head"><div><h2>내 이사 조건</h2><p>현재 매물 추천에 반영 중인 조건이에요.</p></div><button className="my-primary" type="button" onClick={() => setIsEditing((value) => !value)}>{isEditing ? "수정 취소" : "정보 수정"}</button></div>{isEditing ? <div className="my-condition-edit"><label>현재 거주지<input value={conditionDraft.currentResidence} onChange={(event) => setConditionDraft((value) => ({ ...value, currentResidence: event.target.value }))} /></label><label>이사 희망지<input value={conditionDraft.desiredArea} onChange={(event) => setConditionDraft((value) => ({ ...value, desiredArea: event.target.value }))} /></label><label>월세 예산 (만원)<input inputMode="numeric" value={conditionDraft.monthlyRent} onChange={(event) => setConditionDraft((value) => ({ ...value, monthlyRent: event.target.value }))} /></label><label>주거 유형<select value={conditionDraft.roomType} onChange={(event) => setConditionDraft((value) => ({ ...value, roomType: event.target.value }))}><option>원룸</option><option>투룸</option><option>오피스텔</option><option>아파트</option></select></label><label>직장·학교 위치<input value={conditionDraft.workLocation} onChange={(event) => setConditionDraft((value) => ({ ...value, workLocation: event.target.value }))} /></label><label>출퇴근 허용 시간 (분)<input inputMode="numeric" value={conditionDraft.commute} onChange={(event) => setConditionDraft((value) => ({ ...value, commute: event.target.value }))} /></label><button className="my-primary" type="button" onClick={save}>변경 사항 저장</button></div> : <><dl>{[["현재 거주지", conditionDraft.currentResidence], ["이사 희망지", conditionDraft.desiredArea], ["월세 예산", `${conditionDraft.monthlyRent}만원 이하`], ["주거 유형", conditionDraft.roomType], ["직장·학교 위치", conditionDraft.workLocation], ["출퇴근 허용", `${conditionDraft.commute}분 이내`]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><ConditionCostSnapshot condition={conditionDraft} profile={userProfile} /></>}<button className="my-condition-link" type="button" onClick={() => onNavigate("property-search")}>상세 매물 조건에서 이어서 설정하기</button></section>;
+function ConditionsDashboard({ conditions, userProfile, onEdit, onNavigate }) {
+  if (!conditions) {
+    return <section className="my-panel my-conditions-panel"><div className="my-condition-head"><div><h2>내 이사 조건</h2><p>아직 입력한 이사 조건이 없어요. 기본 정보를 입력하면 여기에 보이고 매물 추천에도 반영돼요.</p></div><button className="my-primary" type="button" onClick={() => onNavigate("onboarding")}>기본 정보 입력하기</button></div></section>;
+  }
+  const rows = buildConditionRows(conditions);
+  const answered = rows.filter((row) => row.value && row.value !== SKIPPED).length;
+  const preferred = Object.entries(WEIGHT_LABELS)
+    .map(([key, label]) => [label, conditions.weights[key]])
+    .sort(([, left], [, right]) => right - left)
+    .slice(0, 2)
+    .map(([label, score]) => `${label} ${score}/5`)
+    .join(" · ");
+  const area = conditions.targetRegions.length ? conditions.targetRegions.map(formatRegionShort).join(", ") : formatRegionShort(conditions.region);
+  const budget = conditions.dealType === "전세"
+    ? `전세 보증금 ${formatManwon(conditions.depositBudget) || "-"} 이하`
+    : `보증금 ${formatManwon(conditions.depositBudget) || "-"} · 월세 ${formatManwon(conditions.rentBudget) || "-"} 이하`;
+
+  return <section className="my-panel my-conditions-panel">
+    <div className="my-condition-head"><div><h2>내 이사 조건</h2><p>로그인 후 입력한 기본 정보예요. [수정]으로 고치면 매물 추천에도 함께 반영돼요.</p></div></div>
+    <dl>{rows.map((row) => <div key={row.stepId}>
+      <dt className="shrink-0 basis-28 break-keep md:basis-auto">{row.label}</dt>
+      <dd className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right break-keep">
+        <span className={!row.value ? "text-danger-600" : row.value === SKIPPED ? "font-medium text-ink-500" : ""}>{row.value || "입력이 필요해요"}</span>
+        <button type="button" aria-label={`${row.label} 수정`} onClick={() => onEdit(row.stepId)} className="cursor-pointer rounded border-0 bg-transparent px-1 py-0.5 text-xs font-bold text-brand-600 hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-brand-600">수정</button>
+      </dd>
+    </div>)}</dl>
+    <div className="my-condition-insights">
+      <article><span>조건 입력 완성도</span><b>{answered} / {rows.length}</b><i><em style={{ width: `${(answered / rows.length) * 100}%` }} /></i><small>{answered === rows.length ? "추천에 쓰는 조건을 모두 입력했어요." : "건너뛴 항목을 입력하면 추천 정확도가 높아져요."}</small></article>
+      <article><span>가장 중요한 우선순위</span><b>{preferred}</b><small>매물 정렬 시 이 기준을 우선 반영해요.</small></article>
+    </div>
+    <ConditionCostSnapshot conditions={conditions} profile={userProfile} />
+    <article className="my-condition-recommend"><div><span>현재 조건 기준 추천</span><b>{area} {conditions.roomTypes.join("·")}</b><small>{budget}{conditions.maxCommute !== null ? ` · 출퇴근 ${conditions.maxCommute}분 이내` : ""}</small></div><button type="button" onClick={() => onNavigate("property-recommendations")}>추천 매물 보기</button></article>
+    <button className="my-condition-link" type="button" onClick={() => onNavigate("property-search")}>상세 매물 조건에서 이어서 설정하기 →</button>
+  </section>;
 }
 
 const checklistSeed = [
@@ -206,21 +234,24 @@ function AccountSettings({ profile, setProfile, onNotify }) {
   return <section className="account-settings"><nav className="account-tabs" aria-label="계정 정보 탭">{[["basic", "기본 정보"], ["security", "보안"], ["privacy", "동의·개인정보"]].map(([key, label]) => <button type="button" className={tab === key ? "active" : ""} key={key} onClick={() => setTab(key)}>{label}</button>)}</nav>{tab === "basic" && <section className="account-settings-card"><h2>기본 정보</h2><p>서비스에서 사용할 기본 정보를 관리합니다.</p><div className="account-form"><label className="account-field">닉네임<input value={profile.name} onChange={(event) => setProfile((value) => ({ ...value, name: event.target.value }))} /></label><label className="account-field">이메일 <small>로그인 계정은 변경할 수 없어요.</small><input value={profile.email} readOnly /></label><label className="account-field">월 소득 (만원)<input type="number" min="0" value={profile.income} onChange={(event) => setProfile((value) => ({ ...value, income: event.target.value }))} /></label><button className="account-save" type="button" onClick={saveProfile}>저장</button></div></section>}{tab === "security" && <section className="account-settings-card"><h2>보안</h2><p>비밀번호는 8자 이상으로 입력해 주세요.</p><div className="account-form"><label className="account-field">현재 비밀번호<input type="password" value={passwords.current} onChange={(event) => setPasswords((value) => ({ ...value, current: event.target.value }))} /></label><label className="account-field">새 비밀번호<input type="password" value={passwords.next} onChange={(event) => setPasswords((value) => ({ ...value, next: event.target.value }))} /></label><label className="account-field">새 비밀번호 확인<input type="password" value={passwords.confirm} onChange={(event) => setPasswords((value) => ({ ...value, confirm: event.target.value }))} />{passwordError && <span className="account-password-error">{passwordError}</span>}</label><button className="account-save" type="button" disabled={!passwords.current || passwords.next.length < 8 || Boolean(passwordError)} onClick={savePassword}>비밀번호 변경</button></div><h3 style={{ margin: "27px 0 12px", fontSize: 15 }}>최근 로그인 기록</h3><div className="login-history"><div><b>Chrome · Windows</b><small>오늘 14:20 · 현재 세션</small></div><div><b>Safari · iPhone</b><small>어제 09:12</small></div><div><b>Chrome · Windows</b><small>2026.11.18 19:40</small></div></div></section>}{tab === "privacy" && <><section className="account-settings-card"><h2>동의·개인정보</h2><p>선택 동의는 언제든 변경할 수 있습니다.</p><div className="consent-list"><div className="consent-row"><div><b>서비스 이용 필수 동의</b><small>서비스 제공을 위해 필요한 동의</small></div><input className="consent-switch" type="checkbox" checked readOnly /></div><div className="consent-row"><div><b>맞춤 정책·매물 알림</b><small>동의일시 2026.11.23 14:20</small></div><input className="consent-switch" type="checkbox" defaultChecked /></div><div className="consent-row"><div><b>서비스 개선을 위한 선택 동의</b><small>동의일시 미동의</small></div><input className="consent-switch" type="checkbox" /></div></div><h3 style={{ margin: "22px 0 10px", fontSize: 15 }}>데이터 보관 안내</h3><table className="retention-table"><tbody><tr><th>미사용 문서</th><td>업로드 후 90일</td></tr><tr><th>AI 설명 기록</th><td>생성 후 180일</td></tr><tr><th>탈퇴 계정 데이터</th><td>탈퇴 후 30일 내 완전 삭제</td></tr></tbody></table><div className="account-links"><a href="/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a><a href="/ai-guide" target="_blank" rel="noreferrer">AI 사용 안내</a><a href="/data-sources" target="_blank" rel="noreferrer">데이터 출처·공공누리 표기</a></div></section><section className="account-settings-card account-danger"><h2>위험 영역</h2><p>내 데이터 전체 삭제는 되돌릴 수 없어요. 현재는 모의 동작만 제공합니다.</p><button className="account-delete" type="button" onClick={() => setDeleteOpen(true)}>내 데이터 전체 삭제</button></section></>}{deleteOpen && <div className="account-modal-backdrop"><section className="account-modal" role="dialog" aria-modal="true"><h3>내 데이터를 삭제할까요?</h3><p>저장된 조건, 관심 목록, 체크리스트, 비교 기록이 삭제됩니다. 되돌릴 수 없어요.</p><input value={deleteEmail} onChange={(event) => setDeleteEmail(event.target.value)} placeholder={profile.email} aria-label="이메일 확인" /><div className="account-modal-actions"><button type="button" onClick={() => { setDeleteOpen(false); setDeleteEmail(""); }}>취소</button><button className="danger" type="button" disabled={deleteEmail !== profile.email} onClick={() => { setDeleteOpen(false); setDeleteEmail(""); onNotify("모의 삭제가 완료되었습니다."); }}>삭제</button></div></section></div>}</section>;
 }
 
-function MyPage({ active, onSectionChange, onNavigate, onNotify }) {
+function MyPage({ active, onSectionChange, onNavigate, onEditCondition, onNotify }) {
   const [checked, setChecked] = useState([true, true, false, false]);
-  const [conditionDraft, setConditionDraft] = useState(loadConditionDraft);
-  const [isConditionEditing, setIsConditionEditing] = useState(false);
+  // 이사 조건은 온보딩과 같은 저장소(conditionsStore)를 쓴다. 수정 화면에서 돌아오면 다시 마운트되며 새로 읽는다.
+  const [moveConditions] = useState(loadMoveConditions);
+  const checklistPlaces = {
+    currentResidence: formatRegionShort(moveConditions?.region) || "현재 거주지",
+    desiredArea: moveConditions?.targetRegions.length ? moveConditions.targetRegions.map(formatRegionShort).join(", ") : "희망 지역",
+  };
   const [userProfile, setUserProfile] = useState(loadUserProfile);
   const current = menus.find(([id]) => id === active) ?? menus[0];
   const go = onSectionChange;
   const panel = () => {
     if (active === "dashboard") return <Dashboard onNavigate={onNavigate} onOpenTab={go} userName={userProfile.name} />;
-    if (active === "conditions") return <ConditionsDashboard conditionDraft={conditionDraft} setConditionDraft={setConditionDraft} isEditing={isConditionEditing} setIsEditing={setIsConditionEditing} userProfile={userProfile} onNavigate={onNavigate} onNotify={onNotify} />;
-    if (active === "conditions") { const preferred = Object.entries(conditionDraft.preferences ?? defaultConditionDraft.preferences).sort(([, left], [, right]) => right - left).slice(0, 2).map(([name, score]) => `${name} ${score}/5`).join(" · "); const completion = [conditionDraft.currentResidence, conditionDraft.desiredArea, conditionDraft.monthlyRent, conditionDraft.roomType, conditionDraft.workLocation, conditionDraft.commute].filter(Boolean).length; return <section className="my-panel my-conditions-panel"><div className="my-condition-head"><div><h2>내 이사 조건</h2><p>현재 매물 추천에 반영 중인 조건이에요.</p></div><button className="my-primary" type="button" onClick={() => setIsConditionEditing((value) => !value)}>{isConditionEditing ? "수정 취소" : "정보 수정"}</button></div>{isConditionEditing ? <div className="my-condition-edit"><label>현재 거주지<input value={conditionDraft.currentResidence} onChange={(event) => setConditionDraft((value) => ({ ...value, currentResidence: event.target.value }))} /></label><label>이사 희망지<input value={conditionDraft.desiredArea} onChange={(event) => setConditionDraft((value) => ({ ...value, desiredArea: event.target.value }))} /></label><label>월세 예산 (만원)<input inputMode="numeric" value={conditionDraft.monthlyRent} onChange={(event) => setConditionDraft((value) => ({ ...value, monthlyRent: event.target.value }))} /></label><label>주거 유형<select value={conditionDraft.roomType} onChange={(event) => setConditionDraft((value) => ({ ...value, roomType: event.target.value }))}><option>원룸</option><option>투룸</option><option>오피스텔</option><option>아파트</option></select></label><label>직장·학교 위치<input value={conditionDraft.workLocation} onChange={(event) => setConditionDraft((value) => ({ ...value, workLocation: event.target.value }))} /></label><label>출퇴근 허용 시간 (분)<input inputMode="numeric" value={conditionDraft.commute} onChange={(event) => setConditionDraft((value) => ({ ...value, commute: event.target.value }))} /></label><button className="my-primary" type="button" onClick={() => { window.sessionStorage.setItem("housingRecommendationDraft", JSON.stringify(conditionDraft)); setIsConditionEditing(false); onNotify("이사 조건을 저장했습니다."); }}>변경 사항 저장</button></div> : <><dl>{[["현재 거주지", conditionDraft.currentResidence], ["이사 희망지", conditionDraft.desiredArea], ["월세 예산", `${conditionDraft.monthlyRent}만원 이하`], ["주거 유형", conditionDraft.roomType], ["직장·학교 위치", conditionDraft.workLocation], ["출퇴근 허용", `${conditionDraft.commute}분 이내`]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><div className="my-condition-insights"><article><span>조건 입력 완성도</span><b>{completion} / 6</b><i><em style={{ width: `${(completion / 6) * 100}%` }} /></i><small>{completion === 6 ? "추천에 필요한 기본 조건을 모두 입력했어요." : "비어 있는 조건을 입력하면 추천 정확도가 높아져요."}</small></article><article><span>가장 중요한 우선순위</span><b>{preferred}</b><small>매물 정렬 시 이 기준을 우선 반영해요.</small></article></div><article className="my-condition-recommend"><div><span>현재 조건 기준 추천</span><b>{conditionDraft.desiredArea} {conditionDraft.roomType}</b><small>월 {conditionDraft.monthlyRent}만원 이하 · 출퇴근 {conditionDraft.commute}분 이내</small></div><button type="button" onClick={() => onNavigate("property-recommendations")}>추천 매물 보기</button></article></>}<button className="my-condition-link" type="button" onClick={() => onNavigate("property-search")}>상세 매물 조건에서 이어서 설정하기 →</button></section>; }
+    if (active === "conditions") return <ConditionsDashboard conditions={moveConditions} userProfile={userProfile} onEdit={onEditCondition} onNavigate={onNavigate} />;
     if (active === "favorites") return <FavoriteRegions onNavigate={onNavigate} />;
     if (active === "history") return <CompareHistory onNavigate={onNavigate} />;
     if (active === "documents") return <ContractsPage embedded onNavigate={onNavigate} />;
-    if (active === "checklist") return <MoveChecklist conditionDraft={conditionDraft} onOpenTab={go} />;
+    if (active === "checklist") return <MoveChecklist conditionDraft={checklistPlaces} onOpenTab={go} />;
     if (active === "checklist") return <section className="my-panel"><h2>이사 체크리스트</h2><p>완료한 항목을 눌러 진행 상태를 관리하세요.</p>{["추천 매물 비교", "계약 조건 확인", "이사 일정 예약", "전입신고 준비"].map((label, index) => <label className="my-check" key={label}><input type="checkbox" checked={checked[index]} onChange={() => setChecked((items) => items.map((item, itemIndex) => itemIndex === index ? !item : item))} />{label}</label>)}</section>;
     if (active === "alerts") return <NotificationsPage embedded />;
     if (active === "account") return <><AccountSettings profile={userProfile} setProfile={setUserProfile} onNotify={onNotify} /><AccountGuideModal /></>;

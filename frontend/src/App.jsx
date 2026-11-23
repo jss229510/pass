@@ -18,8 +18,9 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import PropertyMapSearchPage from "./pages/PropertyMapSearchPage";
 import SupportPage from "./pages/SupportPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import { isOnboardingDone, loadMoveConditions } from "./utils/conditionsStore";
 
-const availableSteps = new Set(["landing", "login", "signup", "onboarding", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "contracts", "mypage", "notifications", "guide", "customer-center", "community-qna", "moving-journey", "journey-analysis", "journey-support", "journey-documents"]);
+const availableSteps = new Set(["landing", "login", "signup", "onboarding", "conditions-edit", "property-search", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "contracts", "mypage", "notifications", "guide", "customer-center", "community-qna", "moving-journey", "journey-analysis", "journey-support", "journey-documents"]);
 const journeyStorageKey = "passMovingJourney";
 const demoStorageKey = "passMovingJourneyBusanDemo";
 
@@ -190,6 +191,13 @@ function App() {
     openJourney(2);
   };
 
+  // 이사 조건(온보딩·마이페이지)이 저장된 뒤 매물 추천 화면이 쓰는 상태를 다시 읽는다
+  const syncRecommendationFromConditions = () => {
+    setRecommendationDraft(loadDraft());
+    const conditions = loadMoveConditions();
+    if (conditions?.rentBudget !== null && conditions?.rentBudget !== undefined) setBudget(String(conditions.rentBudget));
+  };
+
   const notify = (message) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
@@ -213,7 +221,8 @@ function App() {
   };
 
   const isAuthPage = step === "login" || step === "signup";
-  const isStandalonePage = isAuthPage || step === "onboarding";
+  const isOnboardingLayout = step === "onboarding" || step === "conditions-edit";
+  const isStandalonePage = isAuthPage || isOnboardingLayout;
   const headerStep = journeySteps.has(step) ? "moving-journey"
     : step === "community-qna" ? "customer-center"
     : ["property-compare", "property-detail", "property-recommendations"].includes(step) ? "property-map-search"
@@ -222,13 +231,14 @@ function App() {
   return (
     <div className="housing-app">
       {!isStandalonePage && <Header activeStep={headerStep} onOpenJourney={() => openJourney()} onNavigate={setStep} onNotify={notify} />}
-      <main className={step === "landing" ? "container landing-container" : isStandalonePage ? "container auth-container" : step === "moving-journey" ? "journey-container" : "container"}>
+      <main className={step === "landing" ? "container landing-container" : isOnboardingLayout ? "onboarding-container" : isStandalonePage ? "auth-container" : step === "moving-journey" ? "journey-container" : "container"}>
         {step === "landing" && (
           <LandingPage properties={properties} onStartJourney={() => openJourney()}
             onStartAnalysis={startJourneyAnalysis} onNavigate={setStep} onPropertyDetail={openPropertyDetail} />
         )}
-        {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep("onboarding")} />}
-        {step === "onboarding" && <OnboardingPage onComplete={() => setStep("mypage")} onNotify={notify} />}
+        {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep(isOnboardingDone() ? "landing" : "onboarding")} />}
+        {step === "onboarding" && <OnboardingPage onComplete={() => { syncRecommendationFromConditions(); navigate("landing", {}, true); }} onNotify={notify} />}
+        {step === "conditions-edit" && <OnboardingPage editStep={navigation.editStep} onExit={saved => { if (saved) syncRecommendationFromConditions(); goBack(() => navigate("mypage", { section: "conditions" }, true)); }} onNotify={notify} />}
         {step === "property-search" && <ConditionsPage draft={recommendationDraft} setDraft={setRecommendationDraft} budget={budget} setBudget={setBudget} currentStep={recommendationStep} onStepChange={setRecommendationStep} resetVersion={recommendationResetVersion} onSaveAndExit={saveRecommendationAndExit} onRequestReset={() => setIsRecommendationResetOpen(true)} onAiRecommend={() => setStep("custom-analysis")} onSupport={() => setStep("support")} onNotify={notify} />}
         {step === "custom-analysis" && <AiRecommendationPage
           flow={maruFlow} onFlowChange={updateMaru} onBack={() => goBack(() => setStep("property-search"))}
@@ -274,7 +284,7 @@ function App() {
         {step === "documents" && <DocumentsPage onNotify={notify} onContracts={() => setStep("contracts")} />}
         {step === "contracts" && <ContractsPage onNavigate={setStep} />}
         {step === "notifications" && <NotificationsPage />}
-        {step === "mypage" && <MyPage active={navigation.section ?? "dashboard"} onSectionChange={section => navigate(step, { section })} onNavigate={setStep} onNotify={notify} />}
+        {step === "mypage" && <MyPage active={navigation.section ?? "dashboard"} onSectionChange={section => navigate(step, { section })} onNavigate={setStep} onEditCondition={stepId => navigate("conditions-edit", { editStep: stepId })} onNotify={notify} />}
         {step === "guide" && <GuidePage onNavigate={setStep} />}
         {step === "customer-center" && <CustomerCenterPage onNavigate={setStep} onNotify={notify} />}
         {step === "community-qna" && <CommunityQnaPage onNavigate={setStep} onNotify={notify} />}
