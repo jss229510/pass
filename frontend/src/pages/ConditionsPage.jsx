@@ -34,7 +34,7 @@ function buildDemoRecommendations(area, budget, deposit, roomType, preferences) 
   return candidates.sort((a, b) => Number(b.isWithinBudget) - Number(a.isWithinBudget) || b.score - a.score).slice(0, 3);
 }
 
-function loadDraft() {
+export function loadDraft() {
   try {
     const savedDraft = window.sessionStorage.getItem(draftStorageKey);
     if (!savedDraft) return defaultDraft;
@@ -54,8 +54,7 @@ function loadDraft() {
   }
 }
 
-function ConditionsPage({ budget, setBudget, currentStep, onStepChange, resetVersion, onSaveAndExit, onRequestReset, onAiRecommend, onSupport, onNotify }) {
-  const [draft, setDraft] = useState(loadDraft);
+function ConditionsPage({ draft, setDraft, budget, setBudget, currentStep, onStepChange, resetVersion, onSaveAndExit, onRequestReset, onAiRecommend, onSupport, onNotify }) {
   const [checkedItems, setCheckedItems] = useState({});
   const isInitialResetVersion = useRef(true);
   const { income, deposit, roomType, desiredArea, workLocation, commute, selectedProperty, preferences } = draft;
@@ -104,7 +103,7 @@ function ConditionsPage({ budget, setBudget, currentStep, onStepChange, resetVer
     setDraft(defaultDraft);
     setCheckedItems({});
     window.sessionStorage.removeItem(draftStorageKey);
-  }, [resetVersion]);
+  }, [resetVersion, setDraft]);
 
   const updateDraft = (key, value) => setDraft((valueBefore) => ({ ...valueBefore, [key]: value }));
   const saveAndExit = () => {

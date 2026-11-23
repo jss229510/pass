@@ -1,5 +1,6 @@
 import React from "react";
 import MarketPriceSection from "../components/MarketPriceSection";
+import maruImage from "../assets/maru-guide-v2.png";
 
 const areaImages = [
   "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=220&q=80",
@@ -13,7 +14,7 @@ function FeatureIcon({ type }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8.5 15l2.1 2.1 4.5-4.5" /></svg>;
 }
 
-function LandingPage({ properties, onStart, onNavigate, onPropertyDetail }) {
+function LandingPage({ properties, onStartJourney, onStartAnalysis, onNavigate, onPropertyDetail }) {
   const guideSteps = ["조건 입력", "매물 추천", "매물 비교", "계약 점검"];
 
   return (
@@ -25,11 +26,55 @@ function LandingPage({ properties, onStart, onNavigate, onPropertyDetail }) {
         .housing-landing{max-width:none;min-height:calc(100vh - 76px);box-shadow:none}.landing-hero{min-height:510px;padding-left:clamp(36px,8vw,170px);padding-right:clamp(36px,8vw,170px)}.landing-hero:after{inset:0 0 0 49%}.hero-copy{padding-top:76px}.hero-copy .eyebrow{margin-bottom:12px;font-size:17px}.hero-copy h1{font-size:clamp(46px,3.4vw,68px);line-height:1.12}.hero-copy .desc{max-width:520px;margin:26px 0 25px;font-size:16px}.hero-actions{gap:16px}.hero-actions button{height:48px;padding:0 27px;border-radius:8px;font-size:15px}.map-preview{top:108px;width:340px;border-radius:12px}.map-search{height:45px;padding:0 16px;font-size:13px}.map-art{height:155px}.map-result{gap:12px;padding:11px}.map-result img{width:77px;height:62px}.map-result b{font-size:15px}.map-result span{font-size:11px}.map-bubble{top:22px;left:74px;padding:10px 13px;font-size:11px}.pin{width:19px;height:19px}.pin:after{width:6px;height:6px;top:6px;left:6px}.landing-content{padding:32px clamp(36px,8vw,170px) 25px}.content-top{gap:58px}.landing-content h2{margin-bottom:15px;font-size:20px}.area-list{gap:14px}.area-card{gap:10px;padding:8px;border-radius:10px}.area-card img{width:70px;height:70px}.area-card b{font-size:14px}.area-card span{margin-top:6px;font-size:11px}.easy-list{gap:16px}.easy-icon{width:52px;height:52px;font-size:24px}.easy-item{gap:12px}.easy-item b,.flow-step b{font-size:14px}.easy-item span,.flow-step span{margin-top:5px;font-size:11px}.flow-row{margin-top:28px;padding:18px 26px;border-radius:12px}.flow-intro b{font-size:16px}.flow-intro span{font-size:11px}.flow-step{padding-left:24px}.flow-step:after{right:13px;top:12px;font-size:22px}.bottom-row{gap:42px;margin-top:24px}.policy-banner{padding:25px 32px;border-radius:13px}.policy-banner .house{font-size:48px}.policy-banner b{font-size:21px}.policy-banner span{font-size:11px}.policy-banner em{font-size:42px}.faq-head span,.faq-item{font-size:12px}.faq-item{padding:10px 0}.landing-footer{padding:17px clamp(36px,8vw,170px);font-size:11px}.landing-footer strong{font-size:16px}@media(max-width:760px){.housing-landing{min-height:auto}.landing-hero{min-height:545px;padding:0 24px}.hero-copy{padding-top:34px}.hero-copy .eyebrow{font-size:14px}.hero-copy h1{font-size:38px}.hero-copy .desc{font-size:14px}.hero-actions button{height:43px;padding:0 15px;font-size:12px}.map-preview{top:324px;width:calc(100% - 48px)}.landing-content{padding:25px 24px}.landing-content h2{font-size:17px}.area-card img{width:58px;height:58px}.bottom-row{gap:24px}.landing-footer{padding:16px 24px}}
       `}</style>
       <style>{`
-        .landing-hero:after{background:linear-gradient(90deg,#ffffff08,rgb(var(--color-primary-rgb) / 0.200) 40%,rgb(var(--color-primary-rgb) / 0.800)),url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=85") center/cover}
+        .landing-hero.landing-journey-hero {
+          display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(270px, .85fr);
+          gap: clamp(24px, 5vw, 76px); align-items: center;
+          min-height: 500px; padding: clamp(32px, 5vw, 80px) clamp(24px, 8vw, 170px);
+          background: radial-gradient(ellipse at 94% 18%, #f5e8ce, transparent 53%), linear-gradient(120deg, #f6faf7, #eaf2e3);
+        }
+        .landing-journey-hero:after { display: none; }
+        .landing-journey-hero .hero-copy { width: auto; padding: 0; }
+        .landing-journey-hero .hero-copy h1 { font-size: clamp(35px, 4.5vw, 68px); word-break: keep-all; }
+        .landing-journey-hero .hero-copy .desc { line-height: 1.65; word-break: keep-all; }
+        .landing-journey-hero .hero-copy h1 b { color: #1c5746; }
+        .landing-journey-hero .hero-actions .start { background: #1d4a3c; border-color: #1d4a3c; }
+        .landing-maru { display: grid; justify-items: center; align-self: stretch; align-content: center; min-width: 0; }
+        .landing-maru img { display: block; width: min(100%, 310px); height: clamp(145px, 28vw, 325px); object-fit: contain; filter: drop-shadow(0 10px 14px #24422c35); }
+        .landing-maru-card {
+          width: min(100%, 380px); text-align: left; padding: 16px 18px; border: 1px solid #d7e4d5;
+          border-radius: 14px; background: #fffdf9; box-shadow: 0 8px 25px #20403310;
+        }
+        .landing-maru-card h2 { margin: 0; color: #19382f; font-size: clamp(17px, 2vw, 24px); }
+        .landing-maru-card p { margin: 6px 0 12px; color: #435e51; font-size: .9rem; line-height: 1.5; }
+        .landing-maru-card .hero-actions button { height: auto; min-height: 42px; padding: 8px 13px; font-size: 14px; }
+        @media(max-width: 760px) {
+          .landing-hero.landing-journey-hero { grid-template-columns: minmax(0, 1fr); gap: 22px; min-height: auto; }
+          .landing-maru { grid-template-columns: minmax(0, .65fr) minmax(0, 1fr); gap: 10px; align-items: center; }
+        }
+        @media(max-width: 359px) {
+          .landing-maru { grid-template-columns: 1fr; }
+        }
       `}</style>
 
-      <div className="landing-hero">
-        <div className="hero-copy"><p className="eyebrow">AI 이사 의사결정 플랫폼</p><h1>가격만 보지 말고,<br /><b>살기 좋은 동네를 고르세요.</b></h1><p className="desc">AI가 월세·관리비뿐 아니라 통근, 치안, 소음, 날씨, 생활 인프라까지 분석합니다. 계약서 확인 질문과 청년지원, 입주 일정도 하나의 이사 계획으로 이어집니다.</p><div className="hero-actions"><button className="start cta-button" onClick={onStart}>맞춤 분석 시작하기</button><button className="outline" onClick={() => onNavigate("property-map-search")}>매물 검색</button></div></div>
+      <div className="landing-hero landing-journey-hero">
+        <div className="hero-copy">
+          <p className="eyebrow">이사 여정</p>
+          <h1>살 동네를 찾는 날부터,<br /><b>새집에 들어가는 날까지.</b></h1>
+          <p className="desc">마루와 통근·예산에 맞는 동네를 찾고, 관심 매물 비교부터 계약·보증 확인, 청년 주거지원과 입주 준비까지 한곳에서 이어가세요.</p>
+          <div className="hero-actions">
+            <button className="start" type="button" onClick={onStartJourney}>이사 여정 시작하기</button>
+          </div>
+        </div>
+        <div className="landing-maru">
+          <img src={maruImage} alt="지도를 들고 안내하는 마루" />
+          <div className="landing-maru-card">
+            <h2>마루의 AI 맞춤 분석</h2>
+            <p>근무지와 원하는 조건을 알려주면, 살펴볼 동네를 지도에서 함께 찾아요.</p>
+            <div className="hero-actions">
+              <button className="outline" type="button" onClick={onStartAnalysis}>AI 맞춤 분석 시작하기</button>
+            </div>
+          </div>
+        </div>
       </div>
       <main className="landing-content">
         <style>{`.policy-icon{display:grid;place-items:center;width:52px;height:52px;color:var(--color-primary-strong)}.policy-icon svg{width:42px;height:42px}`}</style>
@@ -41,7 +86,12 @@ function LandingPage({ properties, onStart, onNavigate, onPropertyDetail }) {
           <section><div className="easy-title"><h2>AI가 이사 결정을 돕는 세 가지</h2></div><div className="easy-list"><div className="easy-item"><i className="easy-icon"><FeatureIcon type="environment" /></i><div><b>주변환경지수 분석</b><span>교통·치안·소음·날씨·편의시설을<br />점수로 비교해요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="contract" /></i><div><b>계약서 질문 생성</b><span>관리비 등 확인할 질문을<br />계약서 내용에 맞춰 만들어요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="move" /></i><div><b>입주 계획 정리</b><span>청년지원·필수 서류·입주일까지<br />해야 할 일을 정리해요.</span></div></div></div></section>
         </div>
         <MarketPriceSection onNavigate={onNavigate} />
-        <section className="flow-row"><div className="flow-intro"><b>AI 이사 의사결정 흐름</b><span>조건 입력부터 입주일까지<br />결정에 필요한 과정을 한 번에 봐요.</span></div><div className="flow-step"><b>내 조건 입력하기</b><span>희망 지역·예산·방 구조를<br />바탕으로 매물을 찾아요.</span></div><div className="flow-step"><b>매물 AI 비교</b><span>보증금·월세·관리비와<br />통근 조건을 비교해요.</span></div><div className="flow-step"><b>계약·입주 준비</b><span>계약서 질문, 청년지원,<br />입주일까지 할 일을 정리해요.</span></div></section>
+        <section className="flow-row">
+          <div className="flow-intro"><b>이사 여정 한눈에 보기</b></div>
+          <div className="flow-step"><b>동네 찾기</b><span>마루와 통근·예산에 맞는 후보를 골라요.</span></div>
+          <div className="flow-step"><b>집 비교하기</b><span>관심 매물의 보증금과 월 지출을 비교해요.</span></div>
+          <div className="flow-step"><b>계약부터 입주까지</b><span>보증, 이사 준비와 입주 후 할 일을 챙겨요.</span></div>
+        </section>
         <div className="bottom-row"><section className="policy-banner"><span className="policy-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3 5 6v5c0 4.6 3 8.3 7 10 4-1.7 7-5.4 7-10V6l-7-3Z" /><path d="M8.5 12.5 11 15l4.5-5" /><path d="M3 19h5M16 19h5" /></svg></span><div><b>내가 받을 수 있는<br />청년 주거 혜택을 찾으세요.</b><span>지역별 월세 지원과 LH·SH 청약 정보를 조건에 맞춰 확인해 보세요.</span></div></section><section className="guide-entry"><button className="guide-entry-card" type="button" onClick={() => onNavigate("guide")}><span className="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" /><path d="M7 8h1.5M7 11h1.5M15.5 8H17M15.5 11H17" /></svg></span><div className="guide-entry-body"><b>이용 가이드</b><span>조건 입력부터 계약 전 점검까지,<br />서비스 이용 방법을 단계별로 안내해요.</span><ol className="guide-entry-steps">{guideSteps.map((label, index) => <li key={label}><i>{String(index + 1).padStart(2, "0")}</i>{label}</li>)}</ol></div></button></section></div>
         <style>{`
           .bottom-row{grid-template-columns:1fr 1fr;align-items:start}.bottom-row>section{min-height:166px}.policy-banner{height:166px;justify-content:flex-start;gap:34px}.policy-banner>div{flex:0 1 auto}.bottom-row>section:last-child{padding:0}.candidate-heading{display:flex;align-items:start;justify-content:space-between}.candidate-heading .candidate-shortcut{margin:0;border:0;background:transparent;color:var(--color-primary-strong);font-size:12px;font-weight:800}.candidate-heading .candidate-shortcut:hover{text-decoration:underline}.area-card{font:inherit;text-align:left}.area-card:hover{border-color:var(--color-primary);background:var(--color-surface-soft)}@media(max-width:760px){.bottom-row>section,.policy-banner{min-height:auto;height:auto}.policy-banner{gap:20px}}

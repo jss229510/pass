@@ -349,7 +349,7 @@ function Detail({ row, rows, answers, onSelect, focus, onZoom }) {
   </section>;
 }
 
-function RecommendationReason({ winner, runnerUp, answers }) {
+function RecommendationReason({ winner, runnerUp, answers, demo }) {
   if (!winner) {
     return <div className="maru-question" aria-live="polite">
       <small>마루의 분석</small>
@@ -361,8 +361,10 @@ function RecommendationReason({ winner, runnerUp, answers }) {
   const type = answers[step.lease];
   const remainingBudget = answers[step.budget] - winner.price;
   const environment = answerLabel(step.environment, answers[step.environment]);
-  const result = !runnerUp
-    ? "통근과 예산 조건을 충족한 후보가 이곳 한 곳이에요."
+  const result = demo
+    ? "입력한 통근·예산·생활환경 조건으로 계산했을 때 이 동네가 1위예요. 이곳으로 이사하는 사례를 이어서 볼게요."
+    : !runnerUp
+      ? "통근과 예산 조건을 충족한 후보가 이곳 한 곳이에요."
     : winner.score === runnerUp.score
       ? runnerUp.name + "과 종합 점수가 같아 기존 통근 순위에서 앞선 이곳을 1위로 골랐어요."
       : runnerUp.name + "보다 종합 점수가 " + (winner.score - runnerUp.score) + "점 높아요.";
@@ -381,28 +383,32 @@ function RecommendationReason({ winner, runnerUp, answers }) {
   </div>;
 }
 
-export default function AiRecommendationPage({ onBack }) {
-  const [started, setStarted] = useState(false);
+const emptyAnswers = [];
+
+export default function AiRecommendationPage({ flow, onFlowChange, onBack, onSaveNeighborhood, startInConversation = false, demoScenario }) {
+  const {
+    started = startInConversation, savedAnswers = emptyAnswers, reviewIndex = null,
+    selected = null, showConditions = false, focus = false,
+  } = flow ?? {};
   const conversationRef = useRef(null);
-  const [savedAnswers, setSavedAnswers] = useState([]);
-  const [reviewIndex, setReviewIndex] = useState(null);
   const answers = useMemo(() => reviewIndex === null ? savedAnswers : savedAnswers.slice(0, reviewIndex), [reviewIndex, savedAnswers]);
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState(null);
-  const [showConditions, setShowConditions] = useState(false);
-  const [focus, setFocus] = useState(false);
   const question = getQuestion(answers);
   const rows = useMemo(() => getRecommendations(answers), [answers]);
+  const guidedChoice = demoScenario?.answers[answers.length];
   const [city, , mode, , type] = answers;
   const done = answers.length === totalSteps;
   const selectedRow = rows.find(row => row.name === selected);
   const winner = rows.find(row => row.rank === 1);
   const runnerUp = rows.find(row => row.rank === 2);
+  const canSave = selectedRow && (!demoScenario || selectedRow.name === demoScenario.neighborhood);
   const previousIndex = answers.findLastIndex(answer => answer !== null);
   useEffect(() => {
     if (conversationRef.current) conversationRef.current.scrollTop = 0;
-  }, [done, reviewIndex]);
+    setInput("");
+    setError("");
+  }, [savedAnswers, reviewIndex, started]);
 
   function submit(value) {
     const next = addAnswer(answers, value);
@@ -411,58 +417,54 @@ export default function AiRecommendationPage({ onBack }) {
       return;
     }
     // Retain the answer slot expected by the shared recommendation module.
+    if (guidedChoice) {
+      const index = answers.length;
+      const expected = addAnswer(answers, guidedChoice);
+      if (!expected || answerLabel(index, next[index]) !== answerLabel(index, expected[index])) {
+        setError(`이 발표 예시는 ‘${guidedChoice}’로 이어져요. 해당 답을 선택하거나 입력해 주세요.`);
+        return;
+      }
+    }
     if (next.length === step.arrival) next.push(null);
-    setSavedAnswers(next);
-    setReviewIndex(null);
-    setInput("");
-    setError("");
+    onFlowChange({ savedAnswers: next, reviewIndex: null, selected: null, focus: false });
   }
 
   function edit(index) {
-    setReviewIndex(index);
-    setInput("");
-    setError("");
-    setSelected(null);
-    setShowConditions(false);
-    setFocus(false);
+    onFlowChange({ reviewIndex: index, selected: null, showConditions: false, focus: false });
   }
 
   function nextReviewedStep() {
     const nextIndex = savedAnswers.findIndex((answer, index) => index > reviewIndex && answer !== null);
-    setReviewIndex(nextIndex === -1 ? null : nextIndex);
-    setInput("");
-    setError("");
+    onFlowChange({ reviewIndex: nextIndex === -1 ? null : nextIndex });
   }
 
   function restart() {
-    edit(0);
-    setReviewIndex(null);
-    setSavedAnswers([]);
-    setStarted(false);
+    onFlowChange({ started: Boolean(demoScenario), savedAnswers: [], reviewIndex: null, selected: null, showConditions: false, focus: false });
   }
 
   function select(name) {
-    setSelected(name);
-    setFocus(Boolean(name));
+    if (name === selected && Boolean(name) === focus) return;
+    onFlowChange({ selected: name, focus: Boolean(name) }, !done || name === selected);
   }
 
   return <section className="maru-flow" aria-label="맞춤 분석">
-    <div className="maru-toolbar"><strong>맞춤 분석</strong><div className="maru-actions">
-      {done && <button type="button" aria-expanded={showConditions} onClick={() => setShowConditions(value => !value)}>{showConditions ? "조건 접기" : "조건 보기"}</button>}
+    <div className="maru-toolbar"><strong>{demoScenario ? "발표 예시 · 마루 맞춤 분석" : "맞춤 분석"}</strong><div className="maru-actions">
+      {done && <button type="button" aria-expanded={showConditions} onClick={() => onFlowChange({ showConditions: !showConditions }, true)}>{showConditions ? "조건 접기" : "조건 보기"}</button>}
       {started && previousIndex >= 0 && <button type="button" onClick={() => edit(previousIndex)}>← 이전 단계</button>}
       {started && <button type="button" onClick={restart}>다시 시작</button>}
-      <button type="button" onClick={onBack}>매물 추천</button>
+      <button type="button" onClick={onBack}>{onSaveNeighborhood ? "이사 여정으로 돌아가기" : "매물 추천"}</button>
     </div></div>
     {!started ? <div className="maru-welcome">
       <img src={maruImage} alt="지도를 들고 인사하는 마루" />
       <div><small>마루</small><h1>안녕하세요, 마루예요!</h1>
         <p>새 직장 근처에서 살 만한 동네를 함께 찾아봐요.</p>
         <p>출근 조건과 집 예산을 알려주면 통근 시간, 월세·전세 시세, 생활환경을 지도에서 비교할 수 있어요.</p>
-        <button type="button" className="maru-primary cta-button" onClick={() => setStarted(true)}>자, 그럼 시작해볼까요? →</button>
+        <button type="button" className="maru-primary cta-button" onClick={() => onFlowChange({ started: true })}>자, 그럼 시작해볼까요? →</button>
       </div>
     </div> : <div className="maru-layout">
       <aside ref={conversationRef} className="maru-conversation" aria-label="마루와 대화">
         <div className="maru-profile"><img src={maruImage} alt="마루" /><div><strong>마루</strong><p>이사할 동네를 같이 찾아요</p></div></div>
+        {demoScenario && <div className="maru-lh"><strong>서울에서 부산으로 이사하는 발표 예시</strong></div>}
         {city && !done && <div className="maru-lh"><strong>{city.name} LH 공공임대</strong><p>접수 상태 미확인</p><a href="https://apply.lh.or.kr/" target="_blank" rel="noreferrer">공고 확인 ↗</a></div>}
         {(!done || showConditions) && <>
           <nav className="maru-steps" aria-label="추천 조건">{names.map((name, index) => index === step.arrival || isSkipped(index, answers) ? null : <button type="button" key={name}
@@ -470,14 +472,28 @@ export default function AiRecommendationPage({ onBack }) {
           <div className="maru-history">{answers.map((answer, index) => answer === null ? null : <span key={index}>{names[index]} · {answerLabel(index, answer)}</span>)}</div>
         </>}
         {done ? <>
-          <RecommendationReason winner={winner} runnerUp={runnerUp} answers={answers} />
+          <RecommendationReason winner={winner} runnerUp={runnerUp} answers={answers} demo={Boolean(demoScenario)} />
           <CandidateList rows={rows} mode={mode} type={type} done selected={selected} onSelect={select} onEditRange={() => edit(step.range)} inConversation />
+          {onSaveNeighborhood && canSave && (
+            <button type="button" className="maru-primary" onClick={() => onSaveNeighborhood({
+              city: city.name,
+              name: selectedRow.name,
+              conditions: [answerLabel(step.range, answers[step.range]), mode, type].join(" · "),
+            })}>
+              {selectedRow.name}을 이사계획에 저장
+            </button>
+          )}
+          {demoScenario && selectedRow && !canSave && <p className="maru-reason">이 동네의 상세 정보도 볼 수 있어요. 집 비교와 계약서 시연은 우동에서 이어져요.</p>}
         </> : question && <>
           <div className="maru-question" key={answers.length} aria-live="polite">
             <small>마루</small><h2>{question.title}</h2><p>{question.description}</p>
             {reviewIndex !== null && <p><strong>이전에 입력한 답변</strong> · {answerLabel(reviewIndex, savedAnswers[reviewIndex])}</p>}
           </div>
-          <div className="maru-actions maru-choices">{question.choices.map(choice => <button type="button" key={choice} onClick={() => submit(choice)}>{choice}</button>)}</div>
+          <div className="maru-actions maru-choices">
+            {question.choices.map(choice => (
+              <button type="button" key={choice} onClick={() => submit(choice)}>{choice}</button>
+            ))}
+          </div>
           <form className="maru-input" onSubmit={event => { event.preventDefault(); submit(input); }}>
             <input value={input} onChange={event => setInput(event.target.value)} placeholder={question.placeholder} aria-label="마루에게 답하기" maxLength={140} />
             <button className="maru-primary cta-button" type="submit">{reviewIndex === null ? "답하기" : "답변 수정"}</button>
@@ -488,7 +504,7 @@ export default function AiRecommendationPage({ onBack }) {
       </aside>
       <div className="maru-stage">
         <MaruMap answers={answers} rows={rows} selected={selected} focusNeighborhood={focus} onAnswer={submit} onSelect={select} showConditions={showConditions} />
-        {done && selectedRow ? <Detail key={selectedRow.name} row={selectedRow} rows={rows} answers={answers} onSelect={select} focus={focus} onZoom={() => setFocus(value => !value)} />
+        {done && selectedRow ? <Detail key={selectedRow.name} row={selectedRow} rows={rows} answers={answers} onSelect={select} focus={focus} onZoom={() => onFlowChange({ focus: !focus }, true)} />
           : !done && mode && <CandidateList rows={rows} mode={mode} type={type} done={false} selected={selected} onSelect={select} onEditRange={() => edit(step.range)} />}
       </div>
     </div>}

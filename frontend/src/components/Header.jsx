@@ -1,9 +1,8 @@
 import React from "react";
 import NotificationMenu from "./NotificationMenu";
 
-function Header({ activeStep, onNavigate, onNotify }) {
+function Header({ activeStep, onNavigate, onNotify, onOpenJourney }) {
   const menuItems = [
-    ["맞춤 분석", "custom-analysis"],
     ["매물 검색", "property-map-search"],
     ["주거지원 정책", "support"],
     ["서류 검토", "documents"],
@@ -22,7 +21,17 @@ function Header({ activeStep, onNavigate, onNotify }) {
   return (
     <header className="header">
       <button className="logo" onClick={() => onNavigate("landing")}>LOGO</button>
-      <nav>
+      {onOpenJourney && (
+        <button
+          className="header-journey-link"
+          type="button"
+          aria-current={activeStep === "moving-journey" ? "page" : undefined}
+          onClick={onOpenJourney}
+        >
+          이사 여정
+        </button>
+      )}
+      <nav aria-label="주 메뉴">
         {menuItems.map(([label, step]) => (
           <button
             className={step === activeStep ? "active" : ""}

@@ -11,8 +11,7 @@ const categories = [
   { id: "support", label: "계약 확인", Icon: FaRegFileAlt, score: 90, description: "계약 전 확인할 주요 항목" },
 ];
 
-function PropertyDetailPage({ property, onBack, onNext }) {
-  const [activeCategoryId, setActiveCategoryId] = useState("overview");
+function PropertyDetailPage({ property, activeCategoryId, onCategoryChange, onBack, onNext }) {
   const [mapPlaces, setMapPlaces] = useState([]);
   const activeCategory = categories.find((category) => category.id === activeCategoryId) ?? categories[0];
   const cityName = property.location.split(" ").slice(0, 2).join(" ");
@@ -27,12 +26,12 @@ function PropertyDetailPage({ property, onBack, onNext }) {
         <div className="area-hero-meta"><span className="area-hero-tag">추천 매물</span><span><FaMapMarkerAlt aria-hidden="true" /> {cityName}</span></div>
         <h1>{property.title}</h1>
         <p>{property.location} · {property.roomType} · {property.area} · 보증금 {property.deposit} / {property.rent}</p>
-        <nav className="area-tabs" aria-label="매물 상세 조건">{categories.map(({ id, label, Icon }) => <button className={activeCategoryId === id ? "active" : ""} type="button" key={id} onClick={() => setActiveCategoryId(id)}><Icon aria-hidden="true" />{label}</button>)}</nav>
+        <nav className="area-tabs" aria-label="매물 상세 조건">{categories.map(({ id, label, Icon }) => <button className={activeCategoryId === id ? "active" : ""} type="button" key={id} onClick={() => onCategoryChange(id)}><Icon aria-hidden="true" />{label}</button>)}</nav>
       </header>
       <main className="area-dashboard">
         <article className="dashboard-panel area-info"><h2><FaInfoCircle className="panel-title-icon" aria-hidden="true" />매물 기본 정보</h2><ul className="area-info-list"><li><i><FaMapMarkedAlt /></i><span>위치</span><b>{property.location}</b></li><li><i><FaBuilding /></i><span>방 구조</span><b>{property.roomType}</b></li><li><i><FaInfoCircle /></i><span>전용 면적</span><b>{property.area}</b></li><li><i><FaBuilding /></i><span>보증금</span><b>{property.deposit}</b></li><li><i><FaMapMarkerAlt /></i><span>월 고정지출</span><b>{property.rent} + {property.maintenance}</b></li></ul></article>
         <article className="dashboard-panel area-map-panel"><header className="area-map-head"><h2><FaMapMarkedAlt className="panel-title-icon" aria-hidden="true" />{property.location} 주변 지도</h2><span className="active-filter">{activeCategory.label} 선택</span></header><KakaoMap regionName={property.location} categoryId={activeCategoryId} onPlacesChange={setMapPlaces} /><div className="map-place-list">{mapPlaces.map((place) => <span key={place}><FaMapMarkerAlt aria-hidden="true" />{place}</span>)}</div></article>
-        <aside className="dashboard-panel area-score-panel"><h2><FaBuilding className="panel-title-icon" aria-hidden="true" />한눈에 보는 {property.title}</h2><div className="area-score-list">{categories.filter(({ id }) => id !== "overview").map(({ id, label, Icon, score, description }) => <button className={`score-row ${activeCategoryId === id ? "active" : ""}`} type="button" key={id} onClick={() => setActiveCategoryId(id)}><i><Icon /></i><span><strong>{label}</strong><small>{description}</small><span className="score-bar"><span style={{ width: `${score}%` }} /></span></span><b className="score-value">{score}</b></button>)}</div></aside>
+        <aside className="dashboard-panel area-score-panel"><h2><FaBuilding className="panel-title-icon" aria-hidden="true" />한눈에 보는 {property.title}</h2><div className="area-score-list">{categories.filter(({ id }) => id !== "overview").map(({ id, label, Icon, score, description }) => <button className={`score-row ${activeCategoryId === id ? "active" : ""}`} type="button" key={id} onClick={() => onCategoryChange(id)}><i><Icon /></i><span><strong>{label}</strong><small>{description}</small><span className="score-bar"><span style={{ width: `${score}%` }} /></span></span><b className="score-value">{score}</b></button>)}</div></aside>
       </main>
       <footer className="area-cta"><div className="area-cta-title"><i><FaBuilding /></i><div><b>{property.title} 계약 전 확인하기</b><p>계약서와 보증 가능 여부를 확인한 뒤 실제 매물 정보를 다시 검토하세요.</p></div></div><button className="cta-button" type="button" onClick={onNext}>주거 지원 정책 보기</button></footer>
     </section>
