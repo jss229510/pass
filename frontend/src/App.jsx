@@ -98,7 +98,7 @@ function App() {
         {step === "property-recommendations" && <PropertyRecommendationsPage budget={budget} properties={properties} onDetail={openPropertyDetail} onCompare={openPropertyCompare} onBack={() => setStep("property-search")} onNotify={notify} />}
         {step === "property-compare" && <PropertyComparePage properties={comparisonProperties} onBack={() => setStep("property-recommendations")} onDetail={openPropertyDetail} />}
         {step === "property-detail" && <PropertyDetailPage property={selectedProperty} onBack={() => setStep("property-recommendations")} onNext={() => setStep("support")} />}
-        {step === "support" && <SupportPage onDocuments={() => setStep("documents")} />}
+        {step === "support" && <SupportPage />}
         {step === "documents" && <DocumentsPage onNotify={notify} />}
         {step === "mypage" && <MyPage onNavigate={setStep} onNotify={notify} />}
         {step === "living-cost" && <LivingCostPage onNavigate={setStep} />}

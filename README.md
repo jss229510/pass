@@ -143,3 +143,33 @@ npm run build
 ```
 
 현재 프론트엔드 프로덕션 빌드가 통과하는 것을 확인했습니다.
+
+## 주거지원 정책 자료실
+
+주거지원 정책 화면은 키워드·지역·제공기관·신청 상태 검색, 지원 유형 분류, 상세 자료, 공식 원문 링크, 브라우저 내 관심 자료 저장을 제공합니다. 전국 공통 정책은 지역 검색에 함께 포함됩니다. 분류는 정책명과 제공기관의 분류명을 바탕으로 정리한 탐색용 구분입니다.
+
+### 공식 API 설정
+
+`backend/.env.example`을 참고하여 서버의 `.env` 또는 환경변수에 다음 값을 설정하고 백엔드를 재시작합니다. 인증키를 프론트엔드나 `VITE_` 환경변수에 넣지 않습니다.
+
+```env
+YOUTH_POLICY_API_KEY=온통청년_청년정책_API_인증키
+LH_POLICY_API_KEY=공공데이터포털_Decoding_인증키
+```
+
+- 온통청년: [인증키 신청](https://www.youthcenter.go.kr/myPage/openapi), [공식 API 문서](https://www.youthcenter.go.kr/cmnFooter/openapiIntro/oaiDoc). `getPlcy`의 주거 분야를 조회합니다.
+- LH: [분양임대공고문 조회 서비스 활용신청](https://www.data.go.kr/data/15058530/openapi.do). 임대주택 유형 `06`을 조회합니다. **Decoding 키**를 사용합니다. 서버가 URL 인코딩합니다.
+
+기존 Oracle DB 환경변수 설정이 필요한 Spring Boot 서버를 `backend/gradlew.bat bootRun`으로 실행합니다. 프론트엔드는 `frontend`에서 `npm run dev`로 실행합니다. Vite가 `/api` 요청을 `http://localhost:8080`으로 전달합니다. 운영 환경에서도 `/api`를 백엔드로 전달하는 프록시가 필요합니다.
+
+추가 엔드포인트는 `GET /api/housing-policies/library`이며 `items`와 기관별 `sources`를 반환합니다. 기존 DB 정책 조회 API는 유지합니다. 응답은 15분간 메모리 캐시하고 오류 시에는 1분 후 재시도합니다. 각 기관에서 최대 1,000건을 수집하며, 수집 한도나 일부 실패는 응답의 `truncated`와 상태에 표시합니다. LH 조회 기간은 현재 기준 전후 1년입니다. 목록에 나온 공고 게시일은 신청 시작일로 사용하지 않습니다. 온통청년의 명시된 신청 날짜를 확인할 수 없으면 `공고 확인`으로 표시합니다.
+
+인증키 미설정, 기관 장애, 일부 수신을 구분합니다. 화면 예시는 사용자가 **자료실 화면 예시 보기**를 눌렀을 때만 표시하고 실제 API 자료와 합치지 않습니다. 현재 인증키가 없어 공식 API 실수신 검증은 수행하지 않았습니다. 키 발급 후 제공기관의 실제 응답으로 확인이 필요합니다.
+
+```powershell
+# frontend
+npm run test:policies
+npm run build
+# backend
+.\gradlew.bat test
+```
