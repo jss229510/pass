@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { formatPriceLabel } from "../data/mapListingData";
+import { findRegionLabel } from "../utils/kakaoRegion";
 import { loadKakaoMaps } from "../utils/loadKakaoMaps";
 
 const DEFAULT_CENTER = { lat: 36.3622, lng: 127.3562 };
@@ -49,16 +50,16 @@ function createFacilityElement(facility) {
   return label;
 }
 
-function PropertyPinMap({ searchQuery, pins, boundsListings, selectedIds, activeId, focusRequest, facilities = null, facilityOrigin = null, onLocate, onError, onPinClick }) {
+function PropertyPinMap({ searchQuery, pins, boundsListings, selectedIds, activeId, focusRequest, facilities = null, facilityOrigin = null, onLocate, onError, onPinClick, onMapClick }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const overlaysRef = useRef([]);
   const facilityShapesRef = useRef([]);
-  const callbacksRef = useRef({ onLocate, onError, onPinClick });
+  const callbacksRef = useRef({ onLocate, onError, onPinClick, onMapClick });
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState("");
 
-  callbacksRef.current = { onLocate, onError, onPinClick };
+  callbacksRef.current = { onLocate, onError, onPinClick, onMapClick };
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +99,27 @@ function PropertyPinMap({ searchQuery, pins, boundsListings, selectedIds, active
       cancelled = true;
     };
   }, [isReady, searchQuery]);
+
+  // 지도 빈 곳을 클릭하면 그 좌표의 행정동을 찾아 onMapClick으로 알려 줍니다.
+  useEffect(() => {
+    if (!isReady) return undefined;
+    const { kakao } = window;
+    let latestClick = 0;
+    const handleClick = (mouseEvent) => {
+      const clickId = ++latestClick;
+      const lat = mouseEvent.latLng.getLat();
+      const lng = mouseEvent.latLng.getLng();
+      findRegionLabel(kakao, lat, lng).then((label) => {
+        if (clickId !== latestClick) return;
+        callbacksRef.current.onMapClick?.(label ? { lat, lng, address: label, placeName: label } : null);
+      });
+    };
+    kakao.maps.event.addListener(mapRef.current, "click", handleClick);
+    return () => {
+      latestClick += 1;
+      kakao.maps.event.removeListener(mapRef.current, "click", handleClick);
+    };
+  }, [isReady]);
 
   useEffect(() => {
     if (!isReady) return;
