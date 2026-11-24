@@ -121,7 +121,6 @@ export function Chip({ selected, onClick, children, shortcut, disabled }) {
         "disabled:cursor-not-allowed disabled:opacity-50",
       )}
     >
-      {shortcut && <kbd aria-hidden="true" className={cx("font-sans text-xs font-bold", selected ? "text-brand-700" : "text-ink-500")}>{shortcut}</kbd>}
       {children}
     </button>
   );
@@ -141,17 +140,6 @@ export function ChoiceCard({ selected, onClick, title, description, shortcut }) 
         selected ? "border-brand-600 bg-brand-100" : "border-border-strong bg-white hover:bg-brand-50",
       )}
     >
-      {shortcut && (
-        <kbd
-          aria-hidden="true"
-          className={cx(
-            "grid size-7 shrink-0 place-items-center rounded-md border border-solid font-sans text-sm font-bold",
-            selected ? "border-brand-600 bg-brand-600 text-white" : "border-border-strong bg-white text-ink-700",
-          )}
-        >
-          {shortcut}
-        </kbd>
-      )}
       <span className="flex flex-col gap-1">
         <span className="text-[17px] font-bold text-ink-900">{title}</span>
         {description && <span className={cx("text-sm", selected ? "text-ink-700" : "text-ink-500")}>{description}</span>}

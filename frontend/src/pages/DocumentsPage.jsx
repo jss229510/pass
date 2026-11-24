@@ -54,6 +54,9 @@ function DocumentsPage({ onNotify }) {
   const [confirmedLeaseFields, setConfirmedLeaseFields] = useState({});
   const leaseDialog = useRef(null);
   const fileInput = useRef(null);
+  const autoOpenLease = useRef(true);
+  const filesRef = useRef(files);
+  filesRef.current = files;
   const area = draft?.desiredArea?.trim();
   const deposit = String(draft?.deposit ?? "").trim() ? Number(draft.deposit) : NaN;
   const policies = area ? demoPolicies.filter((policy) =>
@@ -64,14 +67,21 @@ function DocumentsPage({ onNotify }) {
   const visibleDocuments = selectedPolicy?.required ?? documents.map((_, index) => index);
 
   useEffect(() => {
-    if (!leaseFile) return;
+    if (!leaseFile) {
+      autoOpenLease.current = true;
+      return;
+    }
 
     const url = URL.createObjectURL(leaseFile);
     setLeasePreviewUrl(url);
-    if (!leaseDialog.current?.open) leaseDialog.current?.showModal();
+    if (autoOpenLease.current && !leaseDialog.current?.open) leaseDialog.current?.showModal();
+    autoOpenLease.current = true;
 
     return () => URL.revokeObjectURL(url);
   }, [leaseFile]);
+
+  // 화면을 떠날 때 미리보기용 URL 정리
+  useEffect(() => () => filesRef.current.forEach((file) => URL.revokeObjectURL(file.url)), []);
 
   const toggleChecked = (index) => {
     setChecked((items) => ({ ...items, [index]: !items[index] }));
@@ -86,7 +96,15 @@ function DocumentsPage({ onNotify }) {
     );
     if (acceptedFiles.length) {
       setChecked((items) => ({ ...items, [documentType]: true }));
-      setFiles((previous) => [...previous, ...acceptedFiles.map((file) => file.name)]);
+      setFiles((previous) => [...previous, ...acceptedFiles.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        file,
+        name: file.name,
+        documentIndex: Number(documentType),
+        documentName: documents[documentType][0],
+        url: URL.createObjectURL(file),
+        isPdf: /\.pdf$/i.test(file.name),
+      }))]);
       if (Number(documentType) === leaseDocumentIndex) {
         setLeaseFile(acceptedFiles.at(-1));
         setConfirmedLeaseFields({});
@@ -96,6 +114,28 @@ function DocumentsPage({ onNotify }) {
     onNotify(rejectedCount
       ? `${acceptedFiles.length}개 추가, ${rejectedCount}개 제외. 20MB 이하의 PDF, JPG, PNG를 선택해 주세요.`
       : "파일을 추가하고 해당 서류를 체크했습니다.");
+  };
+
+  const removeFile = (target) => {
+    URL.revokeObjectURL(target.url);
+    const remaining = files.filter((file) => file.id !== target.id);
+    setFiles(remaining);
+
+    // 같은 종류의 파일이 더 없으면 체크도 해제
+    if (!remaining.some((file) => file.documentIndex === target.documentIndex)) {
+      setChecked((items) => ({ ...items, [target.documentIndex]: false }));
+    }
+
+    if (target.file === leaseFile) {
+      const nextLease = remaining.filter((file) => file.documentIndex === leaseDocumentIndex).at(-1);
+      leaseDialog.current?.close();
+      autoOpenLease.current = false;
+      setLeaseFile(nextLease?.file ?? null);
+      setConfirmedLeaseFields({});
+      if (!nextLease) setLeasePreviewUrl("");
+    }
+
+    onNotify(`${target.name} 파일을 삭제했습니다.`);
   };
 
   const selectPolicy = (id) => {
@@ -137,6 +177,24 @@ function DocumentsPage({ onNotify }) {
         .document-type select{max-width:100%;padding:8px;border:1px solid #bfdbfe;border-radius:8px;background:#fff}
         .upload-zone .upload-icon{width:42px;height:42px;margin:0 auto;font-size:25px}
         .review-file{min-width:0;overflow-wrap:anywhere}
+        .document-review .upload-zone.has-files{display:flex;flex-direction:column;align-items:stretch;min-height:480px;padding:20px}
+        .upload-body{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:20px 0 8px}
+        .review-thumbs{display:flex;flex-direction:column;align-items:center;gap:24px;width:100%;margin:0;padding:0;list-style:none;text-align:left}
+        .review-thumbs li{display:grid;gap:8px;width:min(100%,640px);min-width:0}
+        .review-thumb{position:relative;border:1px solid #d9e5f8;border-radius:10px;background:#fff;overflow:hidden}
+        .review-thumbs a{display:block}
+        .upload-zone .review-thumb-remove{position:absolute;top:0;right:0;display:grid;place-items:center;width:34px;height:32px;margin:0;padding:0;border:0;border-radius:0 10px 0 6px;background:rgb(20 35 59 / .8);color:#fff;cursor:pointer;transition:background .15s}
+        .review-thumb-remove svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+        .upload-zone .review-thumb-remove:hover{background:rgb(20 35 59 / .95)}
+        .upload-zone .review-thumb-remove:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+        .upload-zone .lease-reopen{margin-top:14px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8}
+        .document-review .upload-zone .lease-reopen{font-size:14px}
+        .document-review .upload-zone .review-thumb-remove::after,.document-review .upload-zone .lease-reopen::after{content:none}
+        .review-thumb:hover{border-color:#93c5fd}
+        .review-thumbs img{display:block;width:100%;height:auto}
+        .review-thumb-pdf{display:block;width:100%;aspect-ratio:1/1.414;border:0}
+        .review-thumb-caption{display:grid;gap:2px;color:#596b85;font-size:12px;overflow-wrap:anywhere}
+        .review-thumb-caption b{color:#14233b;font-size:13px}
         .lease-review{width:min(1120px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:22px;border:1px solid #d9e5f8;border-radius:16px;background:#fff;color:#14233b;overflow-wrap:anywhere}
         .lease-review::backdrop{background:#172b4d45}
         .lease-review-header{display:flex;align-items:start;justify-content:space-between;gap:12px}
@@ -157,8 +215,8 @@ function DocumentsPage({ onNotify }) {
       <header className="document-hero"><div><p className="document-kicker">CONTRACT & DOCUMENT CHECK</p><h1>계약서와 신청 서류를<br />계약 전에 <b>점검하세요.</b></h1><p>계약 서류와 청년 지원 정책별 필요 서류를 확인하고 준비 상태를 기록하세요.</p></div><div className="document-visual"><svg viewBox="0 0 420 250" aria-hidden="true"><path d="M46 202c42-74 108-110 184-84 56-56 133-41 161 15v50H46Z" fill="#eff6ff" /><path d="M254 43h99l20 20-13 145H226l13-145Z" fill="#fff" stroke="#93c5fd" strokeWidth="7" /><path d="M273 90h65M273 119h65M273 148h48" stroke="#c3e5da" strokeWidth="8" strokeLinecap="round" /><path d="m246 90 8 8 14-16m-22 38 8 8 14-16m-22 38 8 8 14-16" stroke="#3b82f6" strokeWidth="5" fill="none" /><path d="m101 162 58-49 57 49v52h-115Z" fill="#fff" stroke="#1d4ed8" strokeWidth="7" /><circle cx="307" cy="176" r="40" fill="#fff" stroke="#1d4ed8" strokeWidth="9" /><path d="m288 176 12 12 24-28" stroke="#1d4ed8" strokeWidth="8" fill="none" strokeLinecap="round" /></svg></div></header>
       <div className="document-grid">
         <div className="document-upload-column">
-          <section className="upload-zone">
-            <div>
+          <section className={files.length > 0 ? "upload-zone has-files" : "upload-zone"}>
+            <div className="upload-head">
               <span className="upload-icon" aria-hidden="true">⇧</span>
               <h2>계약서 또는 서류 올리기</h2>
               <p>서류 종류를 선택하고 파일을 추가하면 해당 항목이 체크돼요.</p>
@@ -181,14 +239,31 @@ function DocumentsPage({ onNotify }) {
               }}>파일 선택</button>
               <div className="upload-hint"><span>PDF, JPG, PNG · 파일당 최대 20MB</span></div>
             </div>
+            {files.length > 0 && (
+              <div className="upload-body">
+                <ul className="review-thumbs" aria-label="이번 화면에서 추가한 파일">
+                  {files.map((file) => (
+                    <li key={file.id}>
+                      <div className="review-thumb">
+                        {file.isPdf
+                          ? <iframe className="review-thumb-pdf" src={`${file.url}#toolbar=0&view=FitH`} title={`${file.documentName} PDF 미리보기`} />
+                          : (
+                            <a href={file.url} target="_blank" rel="noopener noreferrer" aria-label={`${file.name} 원본 새 탭에서 열기`}>
+                              <img src={file.url} alt={`${file.documentName} 첨부 이미지`} />
+                            </a>
+                          )}
+                        <button type="button" className="review-thumb-remove" aria-label={`${file.name} 삭제`} onClick={() => removeFile(file)}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" /></svg>
+                        </button>
+                      </div>
+                      <span className="review-thumb-caption"><b>{file.documentName}</b>{file.name}</span>
+                    </li>
+                  ))}
+                </ul>
+                {leaseFile && <button type="button" className="lease-reopen" onClick={() => leaseDialog.current?.showModal()}>계약서 검토 다시 열기</button>}
+              </div>
+            )}
           </section>
-          {files.length > 0 && (
-            <section className="review-history" aria-label="첨부 파일 목록">
-              <h3>이번 화면에서 추가한 파일</h3>
-              <ul className="review-file">{files.map((name, index) => <li key={index}>{name}</li>)}</ul>
-              {leaseFile && <button type="button" onClick={() => leaseDialog.current?.showModal()}>계약서 검토 다시 열기</button>}
-            </section>
-          )}
         </div>
         <section className="document-checklist">
           <div className="document-checklist-head">

@@ -19,8 +19,8 @@ export default function RoomDealStep({ answers, update, onNext, onPrev, prevLabe
       <div role="group" aria-labelledby={roomLabelId}>
         <GroupLabel id={roomLabelId}>방 유형</GroupLabel>
         <div className="flex flex-wrap gap-2">
-          {ROOM_TYPES.map((type, index) => (
-            <Chip key={type} selected={answers.roomTypes.includes(type)} onClick={() => toggleRoom(type)} shortcut={String(index + 1)}>
+          {ROOM_TYPES.map((type) => (
+            <Chip key={type} selected={answers.roomTypes.includes(type)} onClick={() => toggleRoom(type)}>
               {type}
             </Chip>
           ))}

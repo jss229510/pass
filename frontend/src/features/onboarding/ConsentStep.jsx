@@ -26,10 +26,10 @@ export default function ConsentStep({ answers, onAgree, onDecline, onPrev, prevL
 
       <div className="mt-8 grid gap-2 md:grid-cols-2">
         <button type="button" aria-keyshortcuts="1" className={buttonClass.primary} onClick={onAgree}>
-          <kbd aria-hidden="true" className="font-sans text-xs opacity-80">1</kbd>동의하고 입력
+          동의하고 입력
         </button>
         <button type="button" aria-keyshortcuts="2" className={buttonClass.secondary} onClick={onDecline}>
-          <kbd aria-hidden="true" className="font-sans text-xs text-ink-500">2</kbd>건너뛰기
+          건너뛰기
         </button>
       </div>
 
