@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FiCrosshair, FiMapPin, FiSearch, FiX } from "react-icons/fi";
 import { MdAccountBalance, MdDirectionsCar, MdDirectionsWalk, MdExpandMore, MdLocalGroceryStore, MdLocalHospital, MdPark, MdSchool, MdSubway } from "react-icons/md";
 import PropertyPinMap from "../components/PropertyPinMap";
-import { MAX_COMPARE, formatManwon, generateListings, getFallbackLocation } from "../data/mapListingData";
+import { MAX_COMPARE, formatManwon, getFallbackLocation } from "../data/mapListingData";
 import { findRegionLabel } from "../utils/kakaoRegion";
 import { loadKakaoMaps } from "../utils/loadKakaoMaps";
 import { FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
 import { recordRecentRegion, recordRegionComparison } from "../utils/recentRegionsStore";
+import { apiRequest } from "../utils/apiClient";
 import "./PropertyMapSearchPage.css";
 
 const facilityIcons = {
@@ -111,8 +112,32 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
   const handledCompareRegionsRef = useRef("");
   const handledSearchRegionRef = useRef("");
   const [autoComparePending, setAutoComparePending] = useState(false);
+  const [listings, setListings] = useState([]);
 
   useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
+
+  useEffect(() => {
+    if (!location) {
+      setListings([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const parameters = new URLSearchParams({
+      query: location.query || query,
+      lat: String(location.lat),
+      lng: String(location.lng),
+      address: location.address || "",
+      placeName: location.placeName || "",
+    });
+    apiRequest(`/api/listings?${parameters}`)
+      .then((value) => {
+        if (!cancelled) setListings(Array.isArray(value) ? value : []);
+      })
+      .catch(() => {
+        if (!cancelled) setListings([]);
+      });
+    return () => { cancelled = true; };
+  }, [location, query]);
 
   // 지도 좌측 상단 "현재 내 주변" 버튼. 위치 권한이 이미 허용된 경우에만 처음부터 내 동네를 보여 줍니다.
   const [myLocation, setMyLocation] = useState({ status: "idle" });
@@ -163,18 +188,37 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
     if (regions.length < 2 || handledCompareRegionsRef.current === requestKey) return;
 
     handledCompareRegionsRef.current = requestKey;
-    const listingsToCompare = regions.map((region) => {
+    let cancelled = false;
+    const locations = regions.map((region) => {
       const location = { ...getFallbackLocation(region), address: region, placeName: region, query: region };
-      return generateListings(location)[0];
+      return location;
     });
     setSearchText(regions[0]);
     setQuery(regions[0]);
     setMapQuery(regions[0]);
-    setLocation({ ...getFallbackLocation(regions[0]), address: regions[0], placeName: regions[0], query: regions[0] });
-    setSelected(listingsToCompare);
-    setActiveId(listingsToCompare[0]?.id ?? null);
-    setAutoComparePending(true);
+    setLocation(locations[0]);
     setStatus("done");
+    Promise.all(locations.map((location) => {
+      const parameters = new URLSearchParams({
+        query: location.query,
+        lat: String(location.lat),
+        lng: String(location.lng),
+        address: location.address,
+        placeName: location.placeName,
+      });
+      return apiRequest(`/api/listings?${parameters}`);
+    }))
+      .then((results) => {
+        if (cancelled) return;
+        const listingsToCompare = results.map((items) => Array.isArray(items) ? items[0] : null).filter(Boolean);
+        setSelected(listingsToCompare);
+        setActiveId(listingsToCompare[0]?.id ?? null);
+        setAutoComparePending(listingsToCompare.length >= 2);
+      })
+      .catch(() => {
+        if (!cancelled) showNotice("자동 비교 매물을 불러오지 못했어요.");
+      });
+    return () => { cancelled = true; };
   }, [initialCompareRegions]);
 
   useEffect(() => {
@@ -218,7 +262,6 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
     });
   }, [selected, facilitiesById, loadFacilities]);
 
-  const listings = useMemo(() => (location ? generateListings(location) : []), [location]);
   const selectedIds = useMemo(() => selected.map((item) => item.id), [selected]);
   const pins = useMemo(() => [...listings, ...selected.filter((item) => !listings.some((listing) => listing.id === item.id))], [listings, selected]);
   const activeListing = selected.find((item) => item.id === activeId) ?? null;
@@ -371,7 +414,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
           <p className={`map-search-status ${status}`}>
             {status === "loading" && <>'{query}' 위치를 찾는 중이에요…</>}
             {status === "failed" && <>'{query}' 위치를 찾지 못했어요. 지역명이나 역 이름으로 다시 검색해 보세요.</>}
-            {status === "done" && <><b>{areaLabel}</b> 주변 매물 {listings.length}건을 지도에 표시했어요. <em>샘플</em></>}
+            {status === "done" && <><b>{areaLabel}</b> 주변 매물 {listings.length}건을 지도에 표시했어요. <em>데모 데이터</em></>}
           </p>
           {mapError && <p className="map-search-warning">{mapError} 대략적인 위치에 샘플 매물을 보여드려요.</p>}
 

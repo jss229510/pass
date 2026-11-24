@@ -1,3 +1,5 @@
+import { apiRequest } from "./apiClient";
+
 const STORAGE_KEY = "housingRecentRegions";
 const FAVORITES_STORAGE_KEY = "housingFavoriteRegions";
 const COMPARE_HISTORY_STORAGE_KEY = "housingRegionCompareHistory";
@@ -6,6 +8,13 @@ const MAX_COMPARE_HISTORY = 10;
 
 const normalizeName = (value) => typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 const toNumberOrNull = (value) => Number.isFinite(value) ? value : null;
+
+function persistState(stateKey, value) {
+  apiRequest(`/api/my/state/${stateKey}`, {
+    method: "PUT",
+    body: JSON.stringify(value),
+  }).catch(() => undefined);
+}
 
 function normalizeComparisonProperty(value) {
   if (typeof value === "string") return { label: normalizeName(value) };
@@ -52,6 +61,7 @@ export function recordRecentRegion(name, source) {
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    persistState("recentRegions", next);
   } catch {
     // Storage permission errors should not stop the current search flow.
   }
@@ -79,6 +89,7 @@ export function toggleFavoriteRegion(name) {
 
   try {
     window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
+    persistState("favorites", next);
   } catch {
     // Storage permission errors should not stop the current interaction.
   }
@@ -118,6 +129,7 @@ export function recordRegionComparison(properties) {
 
   try {
     window.localStorage.setItem(COMPARE_HISTORY_STORAGE_KEY, JSON.stringify(next));
+    persistState("comparisons", next);
   } catch {
     // Storage permission errors should not stop the current comparison.
   }
@@ -128,8 +140,23 @@ export function removeRegionComparison(id) {
   const next = loadRegionCompareHistory().filter((item) => item.id !== id);
   try {
     window.localStorage.setItem(COMPARE_HISTORY_STORAGE_KEY, JSON.stringify(next));
+    persistState("comparisons", next);
   } catch {
     // Storage permission errors should not stop the current interaction.
   }
   return next;
+}
+export async function hydrateRecentRegionState() {
+  try {
+    const [recentRegions, favorites, comparisons] = await Promise.all([
+      apiRequest("/api/my/state/recentRegions"),
+      apiRequest("/api/my/state/favorites"),
+      apiRequest("/api/my/state/comparisons"),
+    ]);
+    if (Array.isArray(recentRegions)) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recentRegions));
+    if (Array.isArray(favorites)) window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+    if (Array.isArray(comparisons)) window.localStorage.setItem(COMPARE_HISTORY_STORAGE_KEY, JSON.stringify(comparisons));
+  } catch {
+    // 로그인 전이나 네트워크 오류에는 기존 캐시를 그대로 사용한다.
+  }
 }

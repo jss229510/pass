@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FiSearch, FiBookOpen, FiMapPin, FiFileText, FiExternalLink, FiBookmark, FiX, FiRefreshCw, FiSliders, FiChevronLeft, FiChevronRight, FiInfo, FiHome, FiTruck, FiCreditCard, FiGrid, FiCheck } from "react-icons/fi";
 import { policyExamples, policyPortals, policyRegions } from "../data/policyLibrary";
 import { filterPolicies, safeExternalUrl } from "../data/policyLibraryUtils";
+import { loadUserState, saveUserState } from "../utils/userStateSync";
 import "./SupportPage.css";
 
 const categories = ["전체", "월세·주거비", "전세·금융", "공공임대", "이사·중개비", "기타 주거지원"];
@@ -60,6 +61,14 @@ export default function SupportPage() {
   const [storageMessage, setStorageMessage] = useState("");
 
   useEffect(() => {
+    loadUserState("savedPolicies")
+      .then((value) => {
+        if (Array.isArray(value)) setSaved(value.filter((id) => typeof id === "string"));
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 100000);
     let active = true;
@@ -89,7 +98,11 @@ export default function SupportPage() {
   function toggleSave(id) {
     const next = saved.includes(id) ? saved.filter((value) => value !== id) : [...saved, id];
     setSaved(next);
-    try { localStorage.setItem("housingSavedPolicies", JSON.stringify(next)); setStorageMessage(""); }
+    try {
+      localStorage.setItem("housingSavedPolicies", JSON.stringify(next));
+      saveUserState("savedPolicies", next).catch(() => undefined);
+      setStorageMessage("");
+    }
     catch { setStorageMessage("이 브라우저에서는 자료 저장이 현재 화면에서만 유지됩니다."); }
   }
   function reset() { setDraft(emptyFilters); setFilters(emptyFilters); setCategory("전체"); setSavedOnly(false); setPage(1); }

@@ -1,7 +1,7 @@
 import React from "react";
 import NotificationMenu from "./NotificationMenu";
 
-function Header({ activeStep, onNavigate, onNotify, onOpenJourney }) {
+function Header({ activeStep, onNavigate, onNotify, onOpenJourney, user, onLogout }) {
   const menuItems = [
     ["매물 검색", "property-map-search"],
     ["주거지원 정책", "support"],
@@ -43,8 +43,13 @@ function Header({ activeStep, onNavigate, onNotify, onOpenJourney }) {
         ))}
       </nav>
       <div className="header-actions">
-        <button className="login-link" onClick={() => onNavigate("login")}>로그인</button>
-        <button className="mypage-link" onClick={() => onNavigate("mypage")}>마이페이지</button>
+        {user ? <>
+          <button className="mypage-link" onClick={() => onNavigate("mypage")}>{user.nickname}님</button>
+          <button className="login-link" onClick={onLogout}>로그아웃</button>
+        </> : <>
+          <button className="login-link" onClick={() => onNavigate("login")}>로그인</button>
+          <button className="mypage-link" onClick={() => onNavigate("login")}>마이페이지</button>
+        </>}
         <NotificationMenu onNavigate={onNavigate} />
       </div>
     </header>

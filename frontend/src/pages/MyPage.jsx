@@ -31,6 +31,7 @@ import {
   buildConditionRows,
 } from "../features/onboarding/conditionRows";
 import { formatManwon } from "../features/onboarding/format";
+import { loadUserState, saveUserState } from "../utils/userStateSync";
 import "../styles/my-dashboard.css";
 import "../styles/favorite-regions.css";
 import "../styles/compare-history.css";
@@ -479,6 +480,13 @@ function FavoriteRegions({ onNavigate }) {
   const [view, setView] = useState("card");
   const [selected, setSelected] = useState([]);
   const [memoTarget, setMemoTarget] = useState(null);
+  useEffect(() => {
+    loadUserState("moveChecklist")
+      .then((value) => {
+        if (Array.isArray(value)) setItems(value);
+      })
+      .catch(() => undefined);
+  }, []);
   const [toast, setToast] = useState(null);
   const [notice, setNotice] = useState("");
   const status = "ready";
@@ -1410,6 +1418,7 @@ function MoveChecklist({ conditionDraft, onOpenTab }) {
         item.id === id ? { ...item, done: !item.done } : item,
       );
       window.localStorage.setItem("housingMoveChecklist", JSON.stringify(next));
+      saveUserState("moveChecklist", next).catch(() => undefined);
       return next;
     });
   const saveMemo = (memo) => {
@@ -1433,6 +1442,7 @@ function MoveChecklist({ conditionDraft, onOpenTab }) {
           "housingMoveChecklist",
           JSON.stringify(next),
         );
+        saveUserState("moveChecklist", next).catch(() => undefined);
         return next;
       });
       return;
@@ -1442,6 +1452,7 @@ function MoveChecklist({ conditionDraft, onOpenTab }) {
         item.id === memoTarget.id ? { ...item, memo: text } : item,
       );
       window.localStorage.setItem("housingMoveChecklist", JSON.stringify(next));
+      saveUserState("moveChecklist", next).catch(() => undefined);
       return next;
     });
   };
@@ -1451,6 +1462,7 @@ function MoveChecklist({ conditionDraft, onOpenTab }) {
     setItems((current) => {
       const next = current.filter((item) => item.id !== id);
       window.localStorage.setItem("housingMoveChecklist", JSON.stringify(next));
+      saveUserState("moveChecklist", next).catch(() => undefined);
       return next;
     });
   return (
@@ -1698,6 +1710,7 @@ function AccountSettings({ profile, setProfile, onNotify }) {
       "housingUserProfile",
       JSON.stringify(profile),
     );
+    saveUserState("profile", profile).catch(() => undefined);
     onNotify("기본 정보를 저장했습니다.");
   };
   const savePassword = () => {
@@ -1996,6 +2009,15 @@ function MyPage({
       : "희망 지역",
   };
   const [userProfile, setUserProfile] = useState(loadUserProfile);
+  useEffect(() => {
+    loadUserState("profile")
+      .then((value) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          setUserProfile((current) => ({ ...current, ...value }));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
   const current = menus.find(([id]) => id === active) ?? menus[0];
   const go = onSectionChange;
   const panel = () => {

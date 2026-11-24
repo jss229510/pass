@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { loadUserState, saveUserState } from "../utils/userStateSync";
 
 function DocumentIcon({ type }) {
   const paths = {
@@ -65,6 +66,14 @@ function DocumentsPage({ onNotify }) {
   ) : demoPolicies;
   const selectedPolicy = policies.find((policy) => policy.id === policyId);
   const visibleDocuments = selectedPolicy?.required ?? documents.map((_, index) => index);
+
+  useEffect(() => {
+    loadUserState("documents")
+      .then((value) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) setChecked(value);
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!leaseFile) {
@@ -146,6 +155,7 @@ function DocumentsPage({ onNotify }) {
   const saveChecklist = () => {
     try {
       window.sessionStorage.setItem("housingDocumentChecklist", JSON.stringify(checked));
+      saveUserState("documents", checked).catch(() => undefined);
       onNotify("이 탭에 서류 준비 상태를 저장했습니다.");
     } catch {
       onNotify("서류 준비 상태를 저장할 수 없습니다.");

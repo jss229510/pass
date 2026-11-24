@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaBell, FaCheckCircle, FaFileAlt, FaMapMarkerAlt, FaRegCalendarAlt } from "react-icons/fa";
 import NotificationToggleRow from "../features/notifications/NotificationToggleRow";
+import { loadUserState, saveUserState } from "../utils/userStateSync";
 
 const initialSettings = {
   types: { rent: true, policy: true, checklist: false, document: true },
@@ -27,6 +28,22 @@ function NotificationsPage({ embedded = false }) {
   const hasChannel = settings.channels.email || settings.channels.push;
 
   useEffect(() => {
+    loadUserState("notifications")
+      .then((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return;
+        const restored = {
+          ...initialSettings,
+          ...value,
+          types: { ...initialSettings.types, ...value.types },
+          channels: { ...initialSettings.channels, ...value.channels },
+        };
+        setSettings(restored);
+        setSavedSettings(restored);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2200);
     return () => window.clearTimeout(timer);
@@ -35,7 +52,14 @@ function NotificationsPage({ embedded = false }) {
   const updateType = (key, checked) => setSettings((value) => ({ ...value, types: { ...value.types, [key]: checked } }));
   const updateChannel = (key, checked) => setSettings((value) => ({ ...value, channels: { ...value.channels, [key]: checked } }));
   const toggleRoom = (room) => setSettings((value) => ({ ...value, rooms: value.rooms.includes(room) ? value.rooms.filter((item) => item !== room) : [...value.rooms, room] }));
-  const save = () => { setSavedSettings(settings); setToast("알림 설정을 저장했어요."); };
+  const save = () => {
+    saveUserState("notifications", settings)
+      .then(() => {
+        setSavedSettings(settings);
+        setToast("알림 설정을 저장했어요.");
+      })
+      .catch(() => setToast("알림 설정을 저장하지 못했어요."));
+  };
   const cancel = () => setSettings(savedSettings);
 
   return (

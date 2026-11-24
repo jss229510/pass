@@ -28,6 +28,7 @@
 // - 항목별 지출을 입력하면 total은 항목 합계로 다시 계산한다.
 
 import { REGIONS } from "../data/regions";
+import { apiRequest } from "./apiClient";
 
 export const STORAGE_KEYS = {
   draft: "onboardingDraft",
@@ -276,7 +277,13 @@ export const loadMoveConditions = () => {
 export const saveMoveConditions = (answers) => {
   const normalized = normalizeAnswers(answers);
   const ok = writeJson(STORAGE_KEYS.conditions, normalized);
-  if (ok) syncRecommendationDraft(normalized);
+  if (ok) {
+    syncRecommendationDraft(normalized);
+    apiRequest("/api/my/state/conditions", {
+      method: "PUT",
+      body: JSON.stringify(normalized),
+    }).catch(() => undefined);
+  }
   return ok;
 };
 
@@ -356,3 +363,16 @@ export const completeOnboarding = (answers) => {
 
 /** 개발·테스트용: 온보딩을 처음부터 다시 보게 한다. */
 export const resetOnboarding = () => [STORAGE_KEYS.draft, STORAGE_KEYS.conditions, STORAGE_KEYS.done].every(removeKey);
+
+export const hydrateMoveConditions = async () => {
+  try {
+    const saved = await apiRequest("/api/my/state/conditions");
+    if (!isPlainObject(saved)) return false;
+    const normalized = normalizeAnswers(saved);
+    if (!writeJson(STORAGE_KEYS.conditions, normalized)) return false;
+    syncRecommendationDraft(normalized);
+    return true;
+  } catch {
+    return false;
+  }
+};

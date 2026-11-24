@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import maruImage from "../assets/maru-guide-v2.png";
 import {
   addAnswer, agencies, answerLabel, areaText, cities, envNames, getQuestion,
-  getRecommendations, isSkipped, marketSample, money, names,
+  isSkipped, marketSample, money, names,
   noPreference, priceText, pyeong, step, totalSteps,
 } from "../data/maruRecommendation";
 import { recordRecentRegion } from "../utils/recentRegionsStore";
+import { apiRequest } from "../utils/apiClient";
 import "./AiRecommendationPage.css";
 
 const leafletUrl = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet";
@@ -396,9 +397,27 @@ export default function AiRecommendationPage({ flow, onFlowChange, onBack, onSav
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const question = getQuestion(answers);
-  const rows = useMemo(() => getRecommendations(answers), [answers]);
   const guidedChoice = demoScenario?.answers[answers.length];
   const [city, , mode, , type] = answers;
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    if (!city) {
+      setRows([]);
+      return undefined;
+    }
+    let cancelled = false;
+    apiRequest("/api/recommendations", {
+      method: "POST",
+      body: JSON.stringify(answers),
+    })
+      .then((value) => {
+        if (!cancelled) setRows(Array.isArray(value) ? value : []);
+      })
+      .catch(() => {
+        if (!cancelled) setRows([]);
+      });
+    return () => { cancelled = true; };
+  }, [answers, city]);
   const done = answers.length === totalSteps;
   const selectedRow = rows.find(row => row.name === selected);
   const winner = rows.find(row => row.rank === 1);

@@ -1,14 +1,126 @@
-import React from "react";
+import React, { useState } from "react";
+import { loginAccount, registerAccount } from "../utils/authStore";
 
-const socialLogins = [
-  ["Google", "https://cdn.simpleicons.org/google/4285F4"],
-  ["네이버", "https://cdn.simpleicons.org/naver/03C75A"],
-  ["카카오", "https://cdn.simpleicons.org/kakaotalk/3C1E1E"],
-  ["GitHub", "https://cdn.simpleicons.org/github/181717"],
-];
+async function readErrorMessage(response) {
+  const text = await response.text();
+  try {
+    const error = JSON.parse(text);
+    return error.detail || error.message || "요청 처리에 실패했어요.";
+  } catch {
+    return text || "요청 처리에 실패했어요.";
+  }
+}
 
 function AuthPage({ mode, onModeChange, onComplete }) {
   const isLogin = mode === "login";
+  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+
+  const switchMode = (nextMode) => {
+    setError("");
+    onModeChange(nextMode);
+  };
+
+  const requestEmailVerification = async () => {
+    if (!email) {
+      setError("이메일을 먼저 입력해 주세요.");
+      return;
+    }
+
+    setError("");
+    setVerificationMessage("");
+    setIsSendingCode(true);
+    try {
+      const response = await fetch("/api/users/email-verifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+      setVerificationMessage("인증번호를 이메일로 보냈어요. 5분 안에 입력해 주세요.");
+    } catch (requestError) {
+      setError(requestError.message || "인증번호 발송에 실패했어요.");
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const confirmEmailVerification = async () => {
+    if (!verificationCode.match(/^\d{6}$/)) {
+      setError("인증번호 6자리를 입력해 주세요.");
+      return;
+    }
+
+    setError("");
+    setIsVerifyingCode(true);
+    try {
+      const response = await fetch("/api/users/email-verifications/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+      setEmailVerified(true);
+      setVerificationMessage("이메일 인증이 완료됐어요.");
+    } catch (requestError) {
+      setError(requestError.message || "인증번호를 확인하지 못했어요.");
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const result = await loginAccount({
+      userId: form.get("userId"),
+      password: form.get("password"),
+      remember: form.get("remember") === "on",
+    });
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onComplete(result.user, false);
+  };
+
+  const handleSignup = async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const password = form.get("password")?.toString() ?? "";
+    if (!emailVerified) {
+      setError("이메일 인증을 먼저 완료해 주세요.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("비밀번호는 8자 이상으로 입력해 주세요.");
+      return;
+    }
+    if (password !== form.get("passwordConfirm")) {
+      setError("비밀번호가 일치하지 않아요.");
+      return;
+    }
+    const result = await registerAccount({
+      email,
+      userId: form.get("userId"),
+      nickname: form.get("nickname"),
+      password,
+    });
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onComplete(result.user, true);
+  };
 
   return (
     <section className={`auth-v2 ${mode}`}>
@@ -31,6 +143,10 @@ function AuthPage({ mode, onModeChange, onComplete }) {
         .auth-v2-field{display:grid;gap:clamp(4px,.7vh,7px);margin:clamp(6px,1.2vh,13px) 0;color:var(--color-text-secondary);font-size:13px;font-weight:800}
         .auth-v2-field input{width:100%;min-width:0;height:clamp(40px,5.4vh,47px);padding:0 14px;border:2px solid transparent;border-radius:9px;outline:0;background:var(--color-surface-soft);color:var(--color-text);font-size:14px}
         .auth-v2-field input:focus{border-color:var(--color-primary);background:#fff}
+        .auth-v2-verification{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}
+        .auth-v2-verification .auth-v2-field{margin:0}
+        .auth-v2-mini-button{height:clamp(40px,5.4vh,47px);padding:0 12px;border:1px solid var(--color-primary);border-radius:9px;background:#fff;color:var(--color-primary-strong);font-size:12px;font-weight:900;white-space:nowrap}
+        .auth-v2-verification-message{margin:4px 0 0;color:var(--color-primary-strong);font-size:12px;font-weight:800}
         /* 회원가입 입력칸: 두 칸씩, 카드가 좁으면 한 칸씩 */
         .auth-v2-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));column-gap:12px}
         .auth-v2-fields .auth-v2-field{min-width:0}
@@ -62,8 +178,155 @@ function AuthPage({ mode, onModeChange, onComplete }) {
           .auth-v2.signup .auth-v2-copy,.auth-v2.signup .auth-v2-card-wrap{grid-column:auto;grid-row:auto}
         }
       `}</style>
-      <div className="auth-v2-copy"><div><h1>{isLogin ? "Welcome" : "Join with us"}</h1><p>{isLogin ? <>나에게 맞는 월세 원룸과<br />청년 주거 혜택을 찾아보세요.</> : <>더 나은 주거 선택의 시작을<br />함께 준비해 보세요.</>}</p><button type="button" onClick={() => onModeChange(isLogin ? "signup" : "login")}>{isLogin ? "회원가입하기" : "로그인하기"}</button></div></div>
-      <div className="auth-v2-card-wrap">{isLogin ? <form className="auth-v2-card" onSubmit={(event) => { event.preventDefault(); onComplete(); }}><strong className="auth-v2-logo">LOGO</strong><h2>로그인</h2><label className="auth-v2-field">이메일<input type="email" placeholder="이메일" required /></label><label className="auth-v2-field">비밀번호<input type="password" placeholder="비밀번호" required /></label><div className="auth-v2-options"><label><input type="checkbox" /> 로그인 상태 유지</label><button className="auth-v2-link" type="button">비밀번호 찾기</button></div><button className="auth-v2-submit cta-button" type="submit">로그인</button><div className="auth-v2-divider">또는 소셜 계정으로 로그인</div><div className="auth-v2-socials">{socialLogins.map(([label, icon]) => <button key={label} type="button" onClick={onComplete}><img src={icon} alt="" />{label}</button>)}</div><p className="auth-v2-switch">아직 회원이 아니신가요? <button className="auth-v2-link" type="button" onClick={() => onModeChange("signup")}>회원가입</button></p></form> : <form className="auth-v2-card" onSubmit={(event) => { event.preventDefault(); onModeChange("login"); }}><strong className="auth-v2-logo">LOGO</strong><h2>회원가입</h2><div className="auth-v2-fields"><label className="auth-v2-field">이메일<input type="email" placeholder="이메일" required /></label><label className="auth-v2-field">인증번호<input inputMode="numeric" placeholder="인증번호 6자리" required /></label><label className="auth-v2-field">사용자 ID<input placeholder="사용할 ID" required /></label><label className="auth-v2-field">닉네임<input placeholder="닉네임" required /></label><label className="auth-v2-field">비밀번호<input type="password" placeholder="비밀번호" required /></label><label className="auth-v2-field">비밀번호 확인<input type="password" placeholder="한 번 더 입력" required /></label></div><label className="auth-v2-agree"><input type="checkbox" required /> 필수 약관에 동의합니다</label><button className="auth-v2-submit cta-button" type="submit">회원가입 완료</button><p className="auth-v2-switch">이미 계정이 있나요? <button className="auth-v2-link" type="button" onClick={() => onModeChange("login")}>로그인</button></p></form>}</div>
+      <div className="auth-v2-copy">
+        <div>
+          <h1>{isLogin ? "Welcome" : "Join with us"}</h1>
+          <p>
+            {isLogin ? (
+              <>
+                나에게 맞는 월세 원룸과
+                <br />
+                청년 주거 혜택을 찾아보세요.
+              </>
+            ) : (
+              <>
+                더 나은 주거 선택의 시작을
+                <br />
+                함께 준비해 보세요.
+              </>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={() => switchMode(isLogin ? "signup" : "login")}
+          >
+            {isLogin ? "회원가입하기" : "로그인하기"}
+          </button>
+        </div>
+      </div>
+      <div className="auth-v2-card-wrap">
+        {isLogin ? (
+          <form
+            className="auth-v2-card"
+            onSubmit={handleLogin}
+          >
+            <strong className="auth-v2-logo">LOGO</strong>
+            <h2>로그인</h2>
+            <label className="auth-v2-field">
+              사용자 ID
+              <input name="userId" placeholder="사용자 ID" required />
+            </label>
+            <label className="auth-v2-field">
+              비밀번호
+              <input name="password" type="password" placeholder="비밀번호" required />
+            </label>
+            <div className="auth-v2-options">
+              <label>
+                <input name="remember" type="checkbox" /> 로그인 상태 유지
+              </label>
+              <button className="auth-v2-link" type="button" onClick={() => setError("비밀번호 찾기는 준비 중이에요.")}>비밀번호 찾기</button>
+            </div>
+            {error && <p role="alert" style={{ margin: "0 0 12px", color: "#c45e4f", fontSize: 12, fontWeight: 800 }}>{error}</p>}
+            <button className="auth-v2-submit cta-button" type="submit">
+              로그인
+            </button>
+            <p className="auth-v2-switch">
+              아직 회원이 아니신가요?{" "}
+              <button
+                className="auth-v2-link"
+                type="button"
+                onClick={() => switchMode("signup")}
+              >
+                회원가입
+              </button>
+            </p>
+          </form>
+        ) : (
+          <form
+            className="auth-v2-card"
+            onSubmit={handleSignup}
+          >
+            <strong className="auth-v2-logo">LOGO</strong>
+            <h2>회원가입</h2>
+            <div className="auth-v2-fields" style={{ gridTemplateColumns: "1fr" }}>
+              <label className="auth-v2-field">
+                이메일
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="이메일"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setEmailVerified(false);
+                    setVerificationMessage("");
+                  }}
+                  required
+                />
+              </label>
+              <div className="auth-v2-verification">
+                <label className="auth-v2-field">
+                  이메일 인증번호
+                  <input
+                    inputMode="numeric"
+                    maxLength="6"
+                    placeholder="6자리 인증번호"
+                    value={verificationCode}
+                    onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ""))}
+                    disabled={emailVerified}
+                  />
+                </label>
+                {emailVerified ? (
+                  <span className="auth-v2-mini-button" style={{ display: "grid", placeItems: "center", gridColumn: "span 2" }}>인증 완료</span>
+                ) : (
+                  <>
+                  <button className="auth-v2-mini-button" type="button" onClick={requestEmailVerification} disabled={isSendingCode}>
+                    {isSendingCode ? "발송 중" : verificationMessage ? "재발송" : "인증번호 받기"}
+                  </button>
+                  <button className="auth-v2-mini-button" type="button" onClick={confirmEmailVerification} disabled={isVerifyingCode}>
+                    {isVerifyingCode ? "확인 중" : "인증 확인"}
+                  </button>
+                  </>
+                )}
+              </div>
+              {verificationMessage && <p className="auth-v2-verification-message">{verificationMessage}</p>}
+              <label className="auth-v2-field">
+                사용자 ID
+                <input name="userId" placeholder="사용할 ID" minLength="3" required />
+              </label>
+              <label className="auth-v2-field">
+                닉네임
+                <input name="nickname" placeholder="닉네임" minLength="2" required />
+              </label>
+              <label className="auth-v2-field">
+                비밀번호
+                <input name="password" type="password" placeholder="8자 이상" minLength="8" required />
+              </label>
+              <label className="auth-v2-field">
+                비밀번호 확인
+                <input name="passwordConfirm" type="password" placeholder="한 번 더 입력" required />
+              </label>
+            </div>
+            <label className="auth-v2-agree">
+              <input type="checkbox" required /> 필수 약관에 동의합니다
+            </label>
+            {error && <p role="alert" style={{ margin: "0 0 12px", color: "#c45e4f", fontSize: 12, fontWeight: 800 }}>{error}</p>}
+            <button className="auth-v2-submit cta-button" type="submit">
+              회원가입 완료
+            </button>
+            <p className="auth-v2-switch">
+              이미 계정이 있나요?{" "}
+              <button
+                className="auth-v2-link"
+                type="button"
+                onClick={() => switchMode("login")}
+              >
+                로그인
+              </button>
+            </p>
+          </form>
+        )}
+      </div>
     </section>
   );
 }

@@ -17,7 +17,10 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import PropertyMapSearchPage from "./pages/PropertyMapSearchPage";
 import SupportPage from "./pages/SupportPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import { isOnboardingDone } from "./utils/conditionsStore";
+import { hydrateMoveConditions, isOnboardingDone } from "./utils/conditionsStore";
+import { getCurrentUser, logoutAccount } from "./utils/authStore";
+import { hydrateRecentRegionState } from "./utils/recentRegionsStore";
+import { loadUserState, saveUserState } from "./utils/userStateSync";
 
 const availableSteps = new Set(["landing", "login", "signup", "onboarding", "conditions-edit", "custom-analysis", "property-recommendations", "property-compare", "property-detail", "property-map-search", "support", "documents", "contracts", "mypage", "notifications", "guide", "customer-center", "community-qna", "moving-journey", "journey-analysis", "journey-support", "journey-documents"]);
 const journeyStorageKey = "passMovingJourney";
@@ -83,8 +86,25 @@ function App() {
   const { step, journeyView, maruFlow, demoMode } = navigation;
   const selectedProperty = properties.find(property => property.id === navigation.propertyId) ?? properties[0];
   const [journeyPlan, setJourneyPlan] = useState(getStoredJourney);
+  const [isJourneyStateHydrated, setIsJourneyStateHydrated] = useState(false);
   const [demoPlan, setDemoPlan] = useState(getStoredDemoPlan);
+  const [authUser, setAuthUser] = useState(getCurrentUser);
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    if (authUser) {
+      hydrateRecentRegionState();
+      hydrateMoveConditions();
+      loadUserState("journey")
+        .then((value) => {
+          if (value?.regions && value?.dates) setJourneyPlan((current) => ({ ...current, ...value }));
+        })
+        .catch(() => undefined)
+        .finally(() => setIsJourneyStateHydrated(true));
+    } else {
+      setIsJourneyStateHydrated(false);
+    }
+  }, [authUser]);
 
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, [navigationKey]: navigationRef.current }, "");
@@ -141,10 +161,11 @@ function App() {
   useEffect(() => {
     try {
       window.localStorage.setItem(journeyStorageKey, JSON.stringify(journeyPlan));
+      if (authUser && isJourneyStateHydrated) saveUserState("journey", journeyPlan).catch(() => undefined);
     } catch {
       // The current plan remains available in memory when browser storage is unavailable.
     }
-  }, [journeyPlan]);
+  }, [authUser, isJourneyStateHydrated, journeyPlan]);
 
   useEffect(() => {
     try {
@@ -197,6 +218,19 @@ function App() {
     navigate("property-map-search", { mapSearchRegion: region, mapCompareRegions: [] });
   };
 
+  const completeAuth = (user, isNewAccount = false) => {
+    setAuthUser(user);
+    window.sessionStorage.setItem("housingUserProfile", JSON.stringify({ name: user.nickname, email: user.email, income: "" }));
+    navigate(isNewAccount || !isOnboardingDone() ? "onboarding" : "landing", {}, true);
+  };
+
+  const logout = () => {
+    logoutAccount();
+    setAuthUser(null);
+    notify("로그아웃했습니다.");
+    navigate("landing", {}, true);
+  };
+
   const isAuthPage = step === "login" || step === "signup";
   const isOnboardingLayout = step === "onboarding" || step === "conditions-edit";
   const isStandalonePage = isAuthPage || isOnboardingLayout;
@@ -207,13 +241,13 @@ function App() {
 
   return (
     <div className="housing-app">
-      {!isStandalonePage && <Header activeStep={headerStep} onOpenJourney={() => openJourney()} onNavigate={setStep} onNotify={notify} />}
+      {!isStandalonePage && <Header activeStep={headerStep} onOpenJourney={() => openJourney()} onNavigate={setStep} onNotify={notify} user={authUser} onLogout={logout} />}
       <main className={step === "landing" ? "container landing-container" : isOnboardingLayout ? "onboarding-container" : isStandalonePage ? "auth-container" : step === "moving-journey" ? "journey-container" : "container"}>
         {step === "landing" && (
           <LandingPage properties={properties} onStartJourney={() => openJourney()}
             onStartAnalysis={startJourneyAnalysis} onNavigate={setStep} onPropertyDetail={openPropertyDetail} />
         )}
-        {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={() => setStep(isOnboardingDone() ? "landing" : "onboarding")} />}
+        {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={completeAuth} />}
         {step === "onboarding" && <OnboardingPage onComplete={() => navigate("landing", {}, true)} onNotify={notify} />}
         {step === "conditions-edit" && <OnboardingPage editStep={navigation.editStep} onExit={() => goBack(() => navigate("mypage", { section: "conditions" }, true))} onNotify={notify} />}
         {step === "custom-analysis" && <AiRecommendationPage
@@ -260,7 +294,7 @@ function App() {
         {step === "documents" && <DocumentsPage onNotify={notify} onContracts={() => setStep("contracts")} />}
         {step === "contracts" && <ContractsPage onNavigate={setStep} />}
         {step === "notifications" && <NotificationsPage />}
-        {step === "mypage" && <MyPage active={navigation.section ?? "dashboard"} onSectionChange={section => navigate(step, { section })} onNavigate={setStep} onCompareRegions={openRegionComparison} onOpenRegionSearch={openRegionSearch} onEditCondition={stepId => navigate("conditions-edit", { editStep: stepId })} onNotify={notify} />}
+        {step === "mypage" && <MyPage active={navigation.section ?? "dashboard"} onSectionChange={section => navigate(step, { section })} onNavigate={setStep} onCompareRegions={openRegionComparison} onOpenRegionSearch={openRegionSearch} onEditCondition={stepId => navigate("conditions-edit", { editStep: stepId })} onNotify={notify} authUser={authUser} />}
         {step === "guide" && <GuidePage onNavigate={setStep} />}
         {step === "customer-center" && <CustomerCenterPage onNavigate={setStep} onNotify={notify} />}
         {step === "community-qna" && <CommunityQnaPage onNavigate={setStep} onNotify={notify} />}

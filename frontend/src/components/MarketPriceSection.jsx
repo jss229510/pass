@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DEAL_TYPES, MARKET_BASE_MONTH, ROOM_TYPES, defaultMarketRegionIds, getMarketSnapshot, getRegionLabel, getRegionPath, marketRegions } from "../data/marketPriceData";
+import { loadUserState, saveUserState } from "../utils/userStateSync";
 import "./MarketPriceSection.css";
 
 const STORAGE_KEY = "housingMarketRegions";
@@ -61,17 +62,31 @@ function MarketPriceSection({ onNavigate }) {
   const [roomType, setRoomType] = useState("원룸");
   const [dealType, setDealType] = useState("월세");
   const [regionIds, setRegionIds] = useState(loadRegionIds);
+  const [isStateHydrated, setIsStateHydrated] = useState(false);
   const [query, setQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
+    loadUserState("marketRegions")
+      .then((value) => {
+        if (Array.isArray(value)) {
+          const validIds = value.filter((id) => marketRegions.some((region) => region.id === id));
+          if (validIds.length) setRegionIds(validIds);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setIsStateHydrated(true));
+  }, []);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(regionIds));
+      if (isStateHydrated) saveUserState("marketRegions", regionIds).catch(() => undefined);
     } catch {
       // 저장소를 쓸 수 없는 환경에서도 화면은 그대로 동작합니다.
     }
-  }, [regionIds]);
+  }, [isStateHydrated, regionIds]);
 
   useEffect(() => {
     if (!isSearchOpen) return undefined;
