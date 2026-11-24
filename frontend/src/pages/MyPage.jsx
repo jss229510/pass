@@ -32,6 +32,8 @@ import {
 } from "../features/onboarding/conditionRows";
 import { formatManwon } from "../features/onboarding/format";
 import { loadUserState, saveUserState } from "../utils/userStateSync";
+import { changePassword, clearMyData } from "../utils/authStore";
+import { clearUserLocalData } from "../utils/userLocalData";
 import "../styles/my-dashboard.css";
 import "../styles/favorite-regions.css";
 import "../styles/compare-history.css";
@@ -1713,11 +1715,29 @@ function AccountSettings({ profile, setProfile, onNotify }) {
     saveUserState("profile", profile).catch(() => undefined);
     onNotify("기본 정보를 저장했습니다.");
   };
-  const savePassword = () => {
+  const savePassword = async () => {
     if (!passwords.current || passwords.next.length < 8 || passwordError)
       return;
+    const result = await changePassword({ currentPassword: passwords.current, newPassword: passwords.next });
+    if (!result.ok) {
+      onNotify(result.message);
+      return;
+    }
     setPasswords({ current: "", next: "", confirm: "" });
     onNotify("비밀번호를 변경했습니다.");
+  };
+  const deleteMyData = async () => {
+    const result = await clearMyData(deleteEmail);
+    if (!result.ok) {
+      onNotify(result.message);
+      return;
+    }
+    setDeleteOpen(false);
+    setDeleteEmail("");
+    // 화면 곳곳의 캐시까지 비우고 서버의 빈 상태로 다시 불러옵니다.
+    clearUserLocalData();
+    window.sessionStorage.setItem("housingUserProfile", JSON.stringify({ ...profile }));
+    window.location.reload();
   };
   return (
     <section className="account-settings">
@@ -1932,8 +1952,8 @@ function AccountSettings({ profile, setProfile, onNotify }) {
           <section className="account-settings-card account-danger">
             <h2>위험 영역</h2>
             <p>
-              내 데이터 전체 삭제는 되돌릴 수 없어요. 현재는 모의 동작만
-              제공합니다.
+              내 데이터 전체 삭제는 되돌릴 수 없어요. 계정은 남고 저장된
+              데이터와 업로드한 계약서 파일이 삭제됩니다.
             </p>
             <button
               className="account-delete"
@@ -1973,11 +1993,7 @@ function AccountSettings({ profile, setProfile, onNotify }) {
                 className="danger"
                 type="button"
                 disabled={deleteEmail !== profile.email}
-                onClick={() => {
-                  setDeleteOpen(false);
-                  setDeleteEmail("");
-                  onNotify("모의 삭제가 완료되었습니다.");
-                }}
+                onClick={deleteMyData}
               >
                 삭제
               </button>

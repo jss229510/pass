@@ -361,6 +361,16 @@ export const completeOnboarding = (answers) => {
   return true;
 };
 
+/** 서버에 이사 조건이 이미 있는 사용자는 이 브라우저에서도 온보딩을 마친 것으로 표시한다. */
+export const markOnboardingDone = () => {
+  try {
+    getStorage()?.setItem(STORAGE_KEYS.done, "true");
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /** 개발·테스트용: 온보딩을 처음부터 다시 보게 한다. */
 export const resetOnboarding = () => [STORAGE_KEYS.draft, STORAGE_KEYS.conditions, STORAGE_KEYS.done].every(removeKey);
 

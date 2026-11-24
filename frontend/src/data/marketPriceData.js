@@ -1,12 +1,12 @@
 // 지역별 원룸·1.5룸·투룸 월세/전세 중위값 목업 데이터
-// 실제 API(예: 국토부 실거래가) 연동 전까지 홈 화면 시세 카드에 사용합니다.
+// 백엔드 /api/market-prices를 쓸 수 없을 때 홈 화면 시세 카드에 같은 형태로 사용합니다.
 
-export const MARKET_BASE_MONTH = "2026.10";
-export const ROOM_TYPES = ["원룸", "1.5룸", "투룸"];
-export const DEAL_TYPES = ["월세", "전세"];
+const BASE_MONTH = "2026.10";
+const ROOM_TYPES = ["원룸", "1.5룸", "투룸"];
+const DEAL_TYPES = ["월세", "전세"];
 
 // 원룸 기준값 (단위: 만원). 1.5룸·투룸 시세는 배율로 계산합니다.
-export const marketRegions = [
+const marketRegions = [
   { id: "daejeon-yuseong", sido: "대전", sigungu: "유성구", monthly: { deposit: 600, rent: 37, change: -2.6, samples: 60 }, jeonse: { deposit: 9800, change: -1.4, samples: 22 } },
   { id: "seoul-gwanak-sillim", sido: "서울", sigungu: "관악구", dong: "신림동", monthly: { deposit: 900, rent: 55, change: 3.8, samples: 44 }, jeonse: { deposit: 15500, change: 1.9, samples: 18 } },
   { id: "seoul-mapo", sido: "서울", sigungu: "마포구", monthly: { deposit: 1200, rent: 69, change: 6.2, samples: 84 }, jeonse: { deposit: 21000, change: 3.1, samples: 31 } },
@@ -23,7 +23,7 @@ export const marketRegions = [
   { id: "daegu-suseong", sido: "대구", sigungu: "수성구", monthly: { deposit: 600, rent: 42, change: -1.9, samples: 36 }, jeonse: { deposit: 10500, change: -2.8, samples: 14 } },
 ];
 
-export const defaultMarketRegionIds = ["daejeon-yuseong", "seoul-gwanak-sillim", "seoul-mapo", "gyeonggi-suwon-yeongtong", "gwangju-buk", "chungnam-asan"];
+const defaultRegionIds = ["daejeon-yuseong", "seoul-gwanak-sillim", "seoul-mapo", "gyeonggi-suwon-yeongtong", "gwangju-buk", "chungnam-asan"];
 
 const roomTypeScale = {
   원룸: { deposit: 1, rent: 1, change: 0, samples: 1 },
@@ -31,13 +31,7 @@ const roomTypeScale = {
   투룸: { deposit: 2, rent: 1.62, change: -0.9, samples: 0.4 },
 };
 
-export function getRegionLabel(region) {
-  return [region.sido, region.sigungu, region.dong].filter(Boolean).join(" ");
-}
-
-export function getRegionPath(region) {
-  return [region.sido, region.sigungu, region.dong].filter(Boolean).join(" > ");
-}
+const joinParts = (region, separator) => [region.sido, region.sigungu, region.dong].filter(Boolean).join(separator);
 
 function createRandom(seedText) {
   let seed = 0;
@@ -62,7 +56,7 @@ function buildYearSeries(endValue, changePct, seedText) {
 
 const roundTo = (value, unit) => Math.max(unit, Math.round(value / unit) * unit);
 
-export function getMarketSnapshot(region, roomType, dealType) {
+function getMarketSnapshot(region, roomType, dealType) {
   const scale = roomTypeScale[roomType] ?? roomTypeScale.원룸;
   const source = dealType === "전세" ? region.jeonse : region.monthly;
   const change = Math.round((source.change + scale.change) * 10) / 10;
@@ -77,4 +71,25 @@ export function getMarketSnapshot(region, roomType, dealType) {
   const deposit = roundTo(source.deposit * scale.deposit, 50);
   const rent = Math.round(source.rent * scale.rent);
   return { deposit, rent, change, samples, series: buildYearSeries(rent, change, seedText) };
+}
+
+// GET /api/market-prices 응답과 같은 형태를 만듭니다.
+export function buildMarketPrices(roomType, dealType) {
+  return {
+    baseMonth: BASE_MONTH,
+    roomType,
+    dealType,
+    roomTypes: ROOM_TYPES,
+    dealTypes: DEAL_TYPES,
+    defaultRegionIds,
+    regions: marketRegions.map(({ id, sido, sigungu, dong = null, ...region }) => ({
+      id,
+      sido,
+      sigungu,
+      dong,
+      label: joinParts({ sido, sigungu, dong }, " "),
+      path: joinParts({ sido, sigungu, dong }, " > "),
+      snapshot: getMarketSnapshot({ id, ...region }, roomType, dealType),
+    })),
+  };
 }

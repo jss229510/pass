@@ -42,7 +42,9 @@ public class LocalStateController {
 
     @GetMapping
     public ObjectNode getAll(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        return localStateStore.getUserState(currentUserId(authorization));
+        ObjectNode state = localStateStore.getUserState(currentUserId(authorization));
+        state.remove("account");
+        return state;
     }
 
     @GetMapping("/{stateKey}")

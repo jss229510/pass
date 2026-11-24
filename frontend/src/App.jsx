@@ -17,7 +17,8 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import PropertyMapSearchPage from "./pages/PropertyMapSearchPage";
 import SupportPage from "./pages/SupportPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import { hydrateMoveConditions, isOnboardingDone } from "./utils/conditionsStore";
+import { hydrateMoveConditions, markOnboardingDone } from "./utils/conditionsStore";
+import { clearUserLocalData } from "./utils/userLocalData";
 import { getCurrentUser, logoutAccount } from "./utils/authStore";
 import { hydrateRecentRegionState } from "./utils/recentRegionsStore";
 import { loadUserState, saveUserState } from "./utils/userStateSync";
@@ -105,6 +106,16 @@ function App() {
       setIsJourneyStateHydrated(false);
     }
   }, [authUser]);
+
+  useEffect(() => {
+    const expireSession = () => {
+      setAuthUser(null);
+      setToast("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+      window.setTimeout(() => setToast(""), 2400);
+    };
+    window.addEventListener("housing:session-expired", expireSession);
+    return () => window.removeEventListener("housing:session-expired", expireSession);
+  }, []);
 
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, [navigationKey]: navigationRef.current }, "");
@@ -218,14 +229,25 @@ function App() {
     navigate("property-map-search", { mapSearchRegion: region, mapCompareRegions: [] });
   };
 
-  const completeAuth = (user, isNewAccount = false) => {
+  // 브라우저 캐시는 이전 사용자 것일 수 있으니 비우고, 기본정보 입력 여부는 서버에 저장된 이사 조건으로 판단합니다.
+  const resetUserCache = () => {
+    clearUserLocalData();
+    setIsJourneyStateHydrated(false);
+    setJourneyPlan(getStoredJourney());
+  };
+
+  const completeAuth = async (user, isNewAccount = false) => {
+    resetUserCache();
     setAuthUser(user);
     window.sessionStorage.setItem("housingUserProfile", JSON.stringify({ name: user.nickname, email: user.email, income: "" }));
-    navigate(isNewAccount || !isOnboardingDone() ? "onboarding" : "landing", {}, true);
+    const hasConditions = !isNewAccount && await hydrateMoveConditions();
+    if (hasConditions) markOnboardingDone();
+    navigate(hasConditions ? "landing" : "onboarding", {}, true);
   };
 
   const logout = () => {
     logoutAccount();
+    resetUserCache();
     setAuthUser(null);
     notify("로그아웃했습니다.");
     navigate("landing", {}, true);

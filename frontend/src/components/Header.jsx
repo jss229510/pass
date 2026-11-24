@@ -44,6 +44,7 @@ function Header({ activeStep, onNavigate, onNotify, onOpenJourney, user, onLogou
       </nav>
       <div className="header-actions">
         {user ? <>
+          <button className="header-avatar" type="button" onClick={() => onNavigate("mypage")} aria-label="마이페이지" title="마이페이지">{user.nickname?.trim().charAt(0) || "?"}</button>
           <button className="mypage-link" onClick={() => onNavigate("mypage")}>{user.nickname}님</button>
           <button className="login-link" onClick={onLogout}>로그아웃</button>
         </> : <>

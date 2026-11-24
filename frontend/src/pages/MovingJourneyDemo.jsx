@@ -123,10 +123,15 @@ export function DemoContract({ home }) {
   const [error, setError] = useState("");
   const fileInput = useRef(null);
   const timer = useRef(null);
+  const resultTitle = useRef(null);
   const record = records[home?.contract];
   const original = contractImages[home?.contract];
   const fileName = "발표용-임대차계약서-" + home?.contract + ".png";
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  // 분석이 끝난 순간에만 결과 제목으로 포커스를 옮긴다. (리렌더링마다 포커스하면 스크롤이 위로 튄다)
+  useEffect(() => {
+    if (status === "done") resultTitle.current?.focus();
+  }, [status]);
 
   function loadExample() {
     setFileLabel(fileName);
@@ -197,7 +202,7 @@ export function DemoContract({ home }) {
       {busy && <div className="journey-ocr-loading" role="status"><span aria-hidden="true" />{status === "checking" ? "예시 파일 확인 중" : "계약서 이미지 분석 중 · OCR 결과 불러오는 중"}</div>}
       {status === "done" && <section className="journey-ocr-result" aria-labelledby="ocr-result-title">
         <header>
-          <div><span className="journey-tag">분석 완료</span><h2 id="ocr-result-title" tabIndex={-1} ref={element => element?.focus()}>계약서 분석 결과</h2></div>
+          <div><span className="journey-tag">분석 완료</span><h2 id="ocr-result-title" tabIndex={-1} ref={resultTitle}>계약서 분석 결과</h2></div>
           <p>이 가상 문서를 Windows 한국어 OCR로 미리 읽은 결과예요. 특약은 규칙으로 분류해 보여줘요.</p>
         </header>
         <dl className="journey-ocr-fields">{fields.map(([label, value, mismatch]) => (

@@ -1,3 +1,118 @@
 {
-  "users" : { }
+  "users" : {
+    "kakao-demo" : {
+      "account" : {
+        "email" : "kakao-demo@demo.local",
+        "nickname" : "테스트 사용자",
+        "passwordHash" : "$2a$10$TkwxtkjQRHAbNA.YRrj4d.Yqw.7jXTwm4VzU5HqxhTkRqhkfBCb8K",
+        "provider" : "kakao",
+        "createdAt" : "2026-11-24T12:23:05.311733900Z"
+      },
+      "journey" : {
+        "area" : null,
+        "regions" : { },
+        "dates" : { }
+      },
+      "marketRegions" : [ "daejeon-yuseong", "seoul-gwanak-sillim", "seoul-mapo", "gyeonggi-suwon-yeongtong", "gwangju-buk", "chungnam-asan" ],
+      "moveChecklist" : [ {
+        "id" : "registry",
+        "stage" : "계약 전",
+        "title" : "등기부등본 확인하기",
+        "description" : "소유자, 근저당권, 선순위 권리를 확인해요.",
+        "due" : 2,
+        "link" : "계약서 분석 내역",
+        "region" : false,
+        "done" : true
+      }, {
+        "id" : "draft",
+        "stage" : "계약 전",
+        "title" : "계약서 초안 검토 요청하기",
+        "description" : "특약과 보증금 반환 조건을 미리 점검해요.",
+        "due" : 3,
+        "link" : "계약서 분석 내역",
+        "region" : false,
+        "done" : true
+      }, {
+        "id" : "date",
+        "stage" : "계약 시",
+        "title" : "확정일자 받기",
+        "description" : "계약 후 주민센터 또는 온라인에서 신청해요.",
+        "due" : 5,
+        "link" : "주거지원 정책",
+        "region" : false
+      }, {
+        "id" : "movein",
+        "stage" : "입주 전후",
+        "title" : "전입신고",
+        "description" : "새 주소지 관할 주민센터 또는 온라인으로 처리해요.",
+        "due" : 1,
+        "link" : "주거지원 정책",
+        "region" : true
+      }, {
+        "id" : "support",
+        "stage" : "입주 전후",
+        "title" : "주거지원 신청 서류 준비",
+        "description" : "지역별 공고와 필요 서류를 함께 확인해요.",
+        "due" : 7,
+        "link" : "주거지원 정책",
+        "region" : true
+      } ],
+      "favorites" : [ "우동", "부평구" ],
+      "recentRegions" : [ {
+        "name" : "대전 유성구 온천2동",
+        "source" : "search",
+        "viewedAt" : 1795523096739
+      }, {
+        "name" : "부평구",
+        "source" : "search",
+        "viewedAt" : 1795522786610
+      }, {
+        "name" : "우동",
+        "source" : "maru",
+        "viewedAt" : 1795522400048
+      } ],
+      "conditions" : {
+        "birthDate" : {
+          "y" : "2002",
+          "m" : "10",
+          "d" : "28"
+        },
+        "region" : {
+          "sido" : "인천광역시",
+          "sigungu" : "부평구"
+        },
+        "targetRegions" : [ {
+          "sido" : "서울특별시",
+          "sigungu" : "종로구"
+        } ],
+        "roomTypes" : [ "원룸" ],
+        "dealType" : "월세",
+        "depositBudget" : 1000,
+        "rentBudget" : 60,
+        "income" : {
+          "amount" : 100,
+          "basis" : "post_tax"
+        },
+        "monthlyExpense" : {
+          "total" : 60,
+          "detail" : null
+        },
+        "livesApart" : "no",
+        "homeless" : "yes",
+        "workRegion" : {
+          "sido" : "서울특별시",
+          "sigungu" : "종로구"
+        },
+        "maxCommute" : 80,
+        "weights" : {
+          "transport" : 5,
+          "housingCost" : 5,
+          "amenities" : 4,
+          "disaster" : 1
+        },
+        "optionalConsent" : "agreed",
+        "optionalConsentAt" : "2026-11-24T12:30:37.631Z"
+      }
+    }
+  }
 }

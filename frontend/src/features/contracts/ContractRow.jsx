@@ -16,7 +16,7 @@ const statusOptions = {
   실패: { icon: FaTimesCircle, className: "is-failed", action: "다시 시도", actionType: "primary" },
 };
 
-function ContractRow({ contract, onAction, onRequestRename, onRequestDelete }) {
+function ContractRow({ contract, onAction, onRequestRename, onRequestDelete, onRequestOpenFile }) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const status = statusOptions[contract.status] ?? statusOptions["분석 전"];
@@ -52,6 +52,7 @@ function ContractRow({ contract, onAction, onRequestRename, onRequestDelete }) {
           <button type="button" className="contract-row-more" onClick={() => setMenuOpen((value) => !value)} aria-label={`${contract.fileName} 더보기`} aria-expanded={menuOpen}>⋯</button>
           {menuOpen && (
             <div className="contract-row-menu-popover" role="menu">
+              {contract.fileId && <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onRequestOpenFile?.(contract); }}>원본 보기</button>}
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onRequestRename?.(contract); }}>이름 변경</button>
               <button type="button" role="menuitem" className="danger" onClick={() => { setMenuOpen(false); onRequestDelete?.(contract); }}>삭제</button>
             </div>

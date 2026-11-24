@@ -6,6 +6,8 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.MailException;
@@ -18,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class EmailVerificationService {
 
+    private static final Logger log = LoggerFactory.getLogger(EmailVerificationService.class);
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
     private final ConcurrentHashMap<String, VerificationCode> codes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> verifiedEmails = new ConcurrentHashMap<>();
@@ -27,14 +30,25 @@ public class EmailVerificationService {
     @Value("${spring.mail.username:}")
     private String senderEmail;
 
-    public void sendCode(String email) {
-        if (senderEmail.isBlank()) {
+    // 로컬 개발(bootRun)에서만 켜진다. SMTP 설정이 없으면 메일 대신 서버 콘솔에 인증번호를 출력한다.
+    @Value("${app.mail.dev-log-code:false}")
+    private boolean devLogCode;
+
+    /** @return 실제 메일로 보냈으면 null, 개발 모드면 화면에 채울 인증번호 */
+    public String sendCode(String email) {
+        boolean logOnly = senderEmail.isBlank() && devLogCode;
+        if (senderEmail.isBlank() && !logOnly) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "메일 발송 설정이 완료되지 않았습니다.");
         }
 
         String normalizedEmail = normalizeEmail(email);
         String code = "%06d".formatted(random.nextInt(1_000_000));
         codes.put(normalizedEmail, new VerificationCode(code, Instant.now().plus(CODE_TTL)));
+
+        if (logOnly) {
+            log.warn("[DEV] SMTP 미설정 - 이메일 인증번호 {} ({}, 5분 유효)", code, normalizedEmail);
+            return code;
+        }
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(senderEmail);
@@ -49,6 +63,7 @@ public class EmailVerificationService {
                     "인증 메일을 보내지 못했습니다. Gmail SMTP 설정을 확인해 주세요."
             );
         }
+        return null;
     }
 
     public void verifyCode(String email, String code) {

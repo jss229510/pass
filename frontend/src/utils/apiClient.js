@@ -29,10 +29,14 @@ export async function apiRequest(path, options = {}) {
   const session = getServerSession();
   const headers = new Headers(options.headers);
   if (session?.token) headers.set("Authorization", `Bearer ${session.token}`);
-  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
   const response = await fetch(path, { ...options, headers });
   if (!response.ok) {
+    if (response.status === 401 && session?.token) {
+      clearServerSession();
+      window.dispatchEvent(new Event("housing:session-expired"));
+    }
     const errorText = await response.text();
     try {
       const error = JSON.parse(errorText);
@@ -45,5 +49,6 @@ export async function apiRequest(path, options = {}) {
     }
   }
   if (response.status === 204) return null;
+  if (options.responseType === "blob") return response.blob();
   return response.json();
 }

@@ -94,6 +94,16 @@
 .journey-checklist { display: grid; gap: 8px; }
 .journey-checklist label { display: flex; gap: 9px; padding: 10px; background: #f7faff; border: 1px solid var(--journey-border); border-radius: 8px; cursor: pointer; }
 .journey-checklist input { accent-color: var(--journey-green); }
+/* 이사 여정의 모든 체크 항목: 항목별 체크/해제는 유지하고 모양만 라디오 버튼처럼 보이게 한다 */
+.journey.journey-shell input[type="checkbox"] { appearance: none; flex: 0 0 auto; display: grid; place-content: center; width: 16px; min-width: 16px; height: 16px; margin: 0; padding: 0; border: 2px solid #9fb3cf; border-radius: 50%; background: #fff; cursor: pointer; }
+.journey.journey-shell input[type="checkbox"]::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--journey-green); transform: scale(0); transition: transform .12s ease; }
+.journey.journey-shell input[type="checkbox"]:checked { border-color: var(--journey-green); }
+.journey.journey-shell input[type="checkbox"]:checked::before { transform: scale(1); }
+.journey.journey-shell input[type="checkbox"]:focus-visible { outline: 2px solid var(--journey-green); outline-offset: 2px; }
+.journey.journey-shell input[type="checkbox"]:disabled { opacity: .45; cursor: default; }
+.journey.journey-shell .journey-checklist input[type="checkbox"] { margin-top: 3px; }
+.journey.journey-shell .journey-demo-section input[type="checkbox"]:checked { border-color: #1d4ed8; }
+.journey.journey-shell .journey-demo-section input[type="checkbox"]::before { background: #1d4ed8; }
 @media (max-width: 780px) {
   .journey-intro { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .journey-intro > img { max-height: 28svh; }

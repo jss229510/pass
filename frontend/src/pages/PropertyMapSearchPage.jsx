@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FiCrosshair, FiMapPin, FiSearch, FiX } from "react-icons/fi";
 import { MdAccountBalance, MdDirectionsCar, MdDirectionsWalk, MdExpandMore, MdLocalGroceryStore, MdLocalHospital, MdPark, MdSchool, MdSubway } from "react-icons/md";
 import PropertyPinMap from "../components/PropertyPinMap";
-import { MAX_COMPARE, formatManwon, getFallbackLocation } from "../data/mapListingData";
+import { MAX_COMPARE, formatManwon, generateListings, getFallbackLocation } from "../data/mapListingData";
 import { findRegionLabel } from "../utils/kakaoRegion";
 import { loadKakaoMaps } from "../utils/loadKakaoMaps";
 import { FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
@@ -134,7 +134,8 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
         if (!cancelled) setListings(Array.isArray(value) ? value : []);
       })
       .catch(() => {
-        if (!cancelled) setListings([]);
+        // 백엔드에 연결할 수 없으면 기존 목업 매물을 그대로 보여 줍니다.
+        if (!cancelled) setListings(generateListings({ ...location, query: location.query || query }));
       });
     return () => { cancelled = true; };
   }, [location, query]);
@@ -145,7 +146,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
   const permissionDialogRef = useRef(null);
   const onLocatedRef = useRef(null);
 
-  const locateMe = useCallback((onLocated) => {
+  const locateMe = useCallback((onLocated, onFailed) => {
     if (!navigator.geolocation) {
       setMyLocation({ status: "error", message: "위치 확인을 지원하지 않는 브라우저예요" });
       return;
@@ -164,7 +165,10 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
         setMyLocation(found);
         onLocated?.(found);
       },
-      (error) => setMyLocation({ status: "error", message: error.code === error.PERMISSION_DENIED ? "위치 권한이 꺼져 있어요" : "내 위치를 찾지 못했어요" }),
+      (error) => {
+        setMyLocation({ status: "error", message: error.code === error.PERMISSION_DENIED ? "위치 권한이 꺼져 있어요" : "내 위치를 찾지 못했어요" });
+        onFailed?.(error);
+      },
       { timeout: 10000, maximumAge: 60 * 1000 },
     );
   }, []);
@@ -206,7 +210,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
         address: location.address,
         placeName: location.placeName,
       });
-      return apiRequest(`/api/listings?${parameters}`);
+      return apiRequest(`/api/listings?${parameters}`).catch(() => generateListings(location));
     }))
       .then((results) => {
         if (cancelled) return;
@@ -313,21 +317,30 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
   };
   onLocatedRef.current = moveToFound;
 
-  // 권한이 있으면 바로 이동, 없으면 허용 여부를 먼저 묻습니다.
+  // 실제 위치 요청이 실패했을 때만 안내합니다. 사이트 권한이 허용이어도 OS 위치 서비스가 꺼져 있으면 거부로 실패합니다.
+  const handleLocateError = (error) => {
+    if (error.code === error.PERMISSION_DENIED) setPermissionDialog("denied");
+    else showNotice(error.code === error.TIMEOUT ? "위치 확인 시간이 초과됐어요. 잠시 후 다시 시도해 주세요." : "내 위치를 찾지 못했어요. 지역을 직접 검색해 주세요.");
+  };
+
+  // 아직 한 번도 묻지 않았으면 안내 후 요청하고, 그 외에는 권한 조회값과 상관없이 실제로 요청해 봅니다.
   const goToMyLocation = async () => {
     if (!navigator.geolocation) {
       showNotice("이 브라우저는 위치 확인을 지원하지 않아요.");
       return;
     }
     const state = await getLocationPermission();
-    if (state === "granted") locateMe((found) => onLocatedRef.current(found));
-    else setPermissionDialog(state === "denied" ? "denied" : "ask");
+    if (state === "prompt") {
+      setPermissionDialog("ask");
+      return;
+    }
+    locateMe((found) => onLocatedRef.current(found), handleLocateError);
   };
 
   const allowLocation = () => {
     setPermissionDialog(null);
     // 브라우저 기본 권한 창이 뜨고, 허용하면 그 위치로 지도를 옮깁니다.
-    locateMe((found) => onLocatedRef.current(found));
+    locateMe((found) => onLocatedRef.current(found), handleLocateError);
   };
 
   const retryLocation = () => {
@@ -536,8 +549,12 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
       >
         {permissionDialog === "denied" ? (
           <>
-            <h2 id="location-permission-title">위치 정보가 차단되어 있어요</h2>
-            <p>브라우저에서 이 사이트의 위치 정보를 막아 두어 다시 물어볼 수 없어요. 주소창 왼쪽의 사이트 정보(자물쇠) 아이콘을 눌러 <b>위치</b>를 <b>허용</b>으로 바꾼 뒤 다시 시도해 주세요.</p>
+            <h2 id="location-permission-title">위치 정보를 가져올 수 없어요</h2>
+            <p>아래 두 가지를 확인한 뒤 다시 시도해 주세요.</p>
+            <ol style={{ margin: "0 0 4px", paddingLeft: 18, lineHeight: 1.6 }}>
+              <li>브라우저: 주소창 왼쪽 사이트 정보(자물쇠) 아이콘 → <b>위치</b>를 <b>허용</b></li>
+              <li>Windows: 설정 → 개인 정보 및 보안 → 위치 → <b>위치 서비스</b> 켜기 (회사 PC는 관리자 정책으로 꺼져 있을 수 있어요)</li>
+            </ol>
             <div className="location-permission-actions">
               <button type="button" className="ghost" onClick={() => setPermissionDialog(null)}>닫기</button>
               <button type="button" className="primary" onClick={retryLocation}>다시 시도</button>

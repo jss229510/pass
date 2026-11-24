@@ -1,18 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DEAL_TYPES, MARKET_BASE_MONTH, ROOM_TYPES, defaultMarketRegionIds, getMarketSnapshot, getRegionLabel, getRegionPath, marketRegions } from "../data/marketPriceData";
+import { buildMarketPrices } from "../data/marketPriceData";
+import { apiRequest } from "../utils/apiClient";
 import { loadUserState, saveUserState } from "../utils/userStateSync";
 import "./MarketPriceSection.css";
 
 const STORAGE_KEY = "housingMarketRegions";
 const MAX_REGIONS = 8;
+const ROOM_TYPES = ["원룸", "1.5룸", "투룸"];
+const DEAL_TYPES = ["월세", "전세"];
 
+const toRegionIds = (value) => (Array.isArray(value) ? value.filter((id) => typeof id === "string") : []);
+
+// 저장된 지역이 없으면 null을 돌려주고, 시세 API 응답의 기본 지역으로 채웁니다.
 function loadRegionIds() {
   try {
-    const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
-    const validIds = Array.isArray(saved) ? saved.filter((id) => marketRegions.some((region) => region.id === id)) : [];
-    return validIds.length ? validIds : defaultMarketRegionIds;
+    const saved = toRegionIds(JSON.parse(window.localStorage.getItem(STORAGE_KEY)));
+    return saved.length ? saved : null;
   } catch {
-    return defaultMarketRegionIds;
+    return null;
   }
 }
 
@@ -63,23 +68,42 @@ function MarketPriceSection({ onNavigate }) {
   const [dealType, setDealType] = useState("월세");
   const [regionIds, setRegionIds] = useState(loadRegionIds);
   const [isStateHydrated, setIsStateHydrated] = useState(false);
+  const [market, setMarket] = useState(null);
   const [query, setQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef(null);
+  const marketRegions = useMemo(() => market?.regions ?? [], [market]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const parameters = new URLSearchParams({ roomType, dealType });
+    apiRequest(`/api/market-prices?${parameters}`)
+      .then((value) => {
+        if (!cancelled) setMarket(value);
+      })
+      .catch(() => {
+        // 백엔드에 연결할 수 없으면 기존 목업 시세를 그대로 보여 줍니다.
+        if (!cancelled) setMarket(buildMarketPrices(roomType, dealType));
+      });
+    return () => { cancelled = true; };
+  }, [roomType, dealType]);
+
+  useEffect(() => {
+    if (market && regionIds === null) setRegionIds(market.defaultRegionIds);
+  }, [market, regionIds]);
 
   useEffect(() => {
     loadUserState("marketRegions")
       .then((value) => {
-        if (Array.isArray(value)) {
-          const validIds = value.filter((id) => marketRegions.some((region) => region.id === id));
-          if (validIds.length) setRegionIds(validIds);
-        }
+        const savedIds = toRegionIds(value);
+        if (savedIds.length) setRegionIds(savedIds);
       })
       .catch(() => undefined)
       .finally(() => setIsStateHydrated(true));
   }, []);
 
   useEffect(() => {
+    if (regionIds === null) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(regionIds));
       if (isStateHydrated) saveUserState("marketRegions", regionIds).catch(() => undefined);
@@ -99,31 +123,31 @@ function MarketPriceSection({ onNavigate }) {
 
   const cards = useMemo(
     () =>
-      regionIds
+      (regionIds ?? [])
         .map((id) => marketRegions.find((region) => region.id === id))
         .filter(Boolean)
-        .map((region) => ({ region, snapshot: getMarketSnapshot(region, roomType, dealType) })),
-    [regionIds, roomType, dealType],
+        .map((region) => ({ region, snapshot: region.snapshot })),
+    [regionIds, marketRegions],
   );
 
   const searchResults = useMemo(() => {
     const keyword = query.replace(/\s|>/g, "");
-    return marketRegions.filter((region) => !regionIds.includes(region.id) && getRegionPath(region).replace(/\s|>/g, "").includes(keyword));
-  }, [query, regionIds]);
+    return marketRegions.filter((region) => !(regionIds ?? []).includes(region.id) && region.path.replace(/\s|>/g, "").includes(keyword));
+  }, [query, regionIds, marketRegions]);
 
   const insight = useMemo(() => {
     if (!cards.length) return null;
     const top = cards.reduce((best, card) => (card.snapshot.change > best.snapshot.change ? card : best));
-    return { label: getRegionLabel(top.region), change: top.snapshot.change };
+    return { label: top.region.label, change: top.snapshot.change };
   }, [cards]);
 
   const addRegion = (region) => {
-    setRegionIds((ids) => [region.id, ...ids.filter((id) => id !== region.id)].slice(0, MAX_REGIONS));
+    setRegionIds((ids) => [region.id, ...(ids ?? []).filter((id) => id !== region.id)].slice(0, MAX_REGIONS));
     setQuery("");
     setIsSearchOpen(false);
   };
 
-  const removeRegion = (regionId) => setRegionIds((ids) => ids.filter((id) => id !== regionId));
+  const removeRegion = (regionId) => setRegionIds((ids) => (ids ?? []).filter((id) => id !== regionId));
 
   const handleSearchKeyDown = (event) => {
     if (event.key === "Enter" && searchResults[0]) {
@@ -182,7 +206,7 @@ function MarketPriceSection({ onNavigate }) {
               {searchResults.length ? (
                 searchResults.map((region) => (
                   <li key={region.id} role="option" aria-selected="false">
-                    <button type="button" onClick={() => addRegion(region)}>{getRegionPath(region)}</button>
+                    <button type="button" onClick={() => addRegion(region)}>{region.path}</button>
                   </li>
                 ))
               ) : (
@@ -200,11 +224,11 @@ function MarketPriceSection({ onNavigate }) {
             return (
               <article className="market-card" key={region.id}>
                 <div className="market-card-head">
-                  <b>{getRegionLabel(region)}</b>
+                  <b>{region.label}</b>
                   <span className="market-deal-badge">{dealType}</span>
-                  <button type="button" className="market-card-remove" aria-label={`${getRegionLabel(region)} 삭제`} onClick={() => removeRegion(region.id)}>×</button>
+                  <button type="button" className="market-card-remove" aria-label={`${region.label} 삭제`} onClick={() => removeRegion(region.id)}>×</button>
                 </div>
-                <p className="market-card-meta">{roomType} · {MARKET_BASE_MONTH} 중위값</p>
+                <p className="market-card-meta">{roomType} · {market.baseMonth} 중위값</p>
                 <strong className="market-card-price">{formatPrice(snapshot)}</strong>
                 <div className="market-card-trend">
                   <div>

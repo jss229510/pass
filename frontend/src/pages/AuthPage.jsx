@@ -1,5 +1,16 @@
-import React, { useState } from "react";
-import { loginAccount, registerAccount } from "../utils/authStore";
+import React, { useEffect, useRef, useState } from "react";
+
+// 개발 모드: 메일이 도착한 것처럼 잠시 뒤 인증번호를 자동으로 채운다.
+const DEV_CODE_AUTOFILL_DELAY = 5000;
+import { demoSocialLogin, loginAccount, registerAccount } from "../utils/authStore";
+
+// 실제 OAuth 연동 전까지 쓰는 버튼입니다. 개발 모드에서 제공자별 체험 계정으로 로그인한 뒤 기본정보 입력(온보딩)으로 이동합니다.
+const socialLogins = [
+  ["google", "Google", "https://cdn.simpleicons.org/google/4285F4"],
+  ["naver", "네이버", "https://cdn.simpleicons.org/naver/03C75A"],
+  ["kakao", "카카오", "https://cdn.simpleicons.org/kakaotalk/3C1E1E"],
+  ["github", "GitHub", "https://cdn.simpleicons.org/github/181717"],
+];
 
 async function readErrorMessage(response) {
   const text = await response.text();
@@ -20,6 +31,9 @@ function AuthPage({ mode, onModeChange, onComplete }) {
   const [verificationMessage, setVerificationMessage] = useState("");
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const autofillTimer = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(autofillTimer.current), []);
 
   const switchMode = (nextMode) => {
     setError("");
@@ -44,7 +58,18 @@ function AuthPage({ mode, onModeChange, onComplete }) {
       if (!response.ok) {
         throw new Error(await readErrorMessage(response));
       }
-      setVerificationMessage("인증번호를 이메일로 보냈어요. 5분 안에 입력해 주세요.");
+      const result = await response.json().catch(() => ({}));
+      if (result.delivery === "server-log" && result.devCode) {
+        setVerificationCode("");
+        setVerificationMessage("인증번호를 보냈어요. 5초 뒤 자동으로 입력돼요.");
+        window.clearTimeout(autofillTimer.current);
+        autofillTimer.current = window.setTimeout(() => {
+          setVerificationCode(result.devCode);
+          setVerificationMessage("인증번호가 자동으로 입력됐어요. [인증 확인]을 눌러 주세요.");
+        }, DEV_CODE_AUTOFILL_DELAY);
+      } else {
+        setVerificationMessage("인증번호를 이메일로 보냈어요. 5분 안에 입력해 주세요.");
+      }
     } catch (requestError) {
       setError(requestError.message || "인증번호 발송에 실패했어요.");
     } finally {
@@ -90,6 +115,17 @@ function AuthPage({ mode, onModeChange, onComplete }) {
       setError(result.message);
       return;
     }
+    onComplete(result.user, false);
+  };
+
+  const handleSocialLogin = async (provider) => {
+    setError("");
+    const result = await demoSocialLogin(provider);
+    if (!result.ok) {
+      setError("소셜 로그인을 사용할 수 없어요. 이메일로 가입하거나 로그인해 주세요.");
+      return;
+    }
+    // 처음 쓰는 체험 계정은 서버에 이사 조건이 없어 기본정보 입력으로, 이미 입력한 계정은 홈으로 이동합니다.
     onComplete(result.user, false);
   };
 
@@ -157,7 +193,7 @@ function AuthPage({ mode, onModeChange, onComplete }) {
         .auth-v2-link{border:0;background:transparent;color:var(--color-primary-strong);font-weight:900}
         .auth-v2-divider{display:flex;align-items:center;gap:10px;margin:clamp(10px,2vh,22px) 0 clamp(8px,1.4vh,14px);color:var(--color-text-muted);font-size:11px}
         .auth-v2-divider:before,.auth-v2-divider:after{content:"";height:1px;flex:1;background:var(--color-background)}
-        .auth-v2-socials{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+        .auth-v2-socials{display:grid;grid-template-columns:1fr;gap:9px}
         .auth-v2-socials button{display:flex;align-items:center;justify-content:center;gap:9px;height:clamp(38px,5vh,45px);border:1px solid var(--color-background);border-radius:8px;background:#fff;color:var(--color-text);font-size:13px;font-weight:800}
         .auth-v2-socials img{width:18px;height:18px}
         .auth-v2-switch{margin:clamp(10px,2vh,21px) 0 0;text-align:center;color:var(--color-text-muted);font-size:13px}
@@ -230,6 +266,15 @@ function AuthPage({ mode, onModeChange, onComplete }) {
             <button className="auth-v2-submit cta-button" type="submit">
               로그인
             </button>
+            <div className="auth-v2-divider">또는 소셜 계정으로 로그인</div>
+            <div className="auth-v2-socials">
+              {socialLogins.map(([provider, label, icon]) => (
+                <button key={provider} type="button" onClick={() => handleSocialLogin(provider)}>
+                  <img src={icon} alt="" />
+                  {label}
+                </button>
+              ))}
+            </div>
             <p className="auth-v2-switch">
               아직 회원이 아니신가요?{" "}
               <button
@@ -260,6 +305,7 @@ function AuthPage({ mode, onModeChange, onComplete }) {
                     setEmail(event.target.value);
                     setEmailVerified(false);
                     setVerificationMessage("");
+                    window.clearTimeout(autofillTimer.current);
                   }}
                   required
                 />

@@ -43,3 +43,7 @@
   .housing-app > .header:has(.header-journey-link) { padding-inline: 12px; column-gap: 8px; }
   .housing-app > .header .header-journey-link { padding-inline: 9px; font-size: 13px; }
 }
+
+/* 헤더 사용자 아바타: 누르면 마이페이지로 이동 */
+.housing-app > .header .header-avatar { display: grid; flex: 0 0 auto; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--color-primary); color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; }
+.housing-app > .header .header-avatar:focus-visible { outline: 2px solid var(--color-primary-strong); outline-offset: 2px; }

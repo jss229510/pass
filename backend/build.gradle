@@ -43,6 +43,14 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// 로컬 개발 실행에서만 켜는 기능 (배포 jar에는 적용되지 않음)
+// - SMTP 미설정 시 인증번호를 메일 대신 콘솔/화면으로 전달
+// - 소셜 버튼을 체험 계정 로그인으로 연결
+tasks.named('bootRun') {
+    systemProperty 'app.mail.dev-log-code', 'true'
+    systemProperty 'app.auth.demo-social', 'true'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }

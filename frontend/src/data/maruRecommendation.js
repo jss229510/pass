@@ -121,46 +121,6 @@ export const priceText = (type,price)=>(type==='월세'?'월 ':'전세 ')+money(
 export const pyeong = area=>(area/3.305785).toLocaleString('ko-KR',{maximumFractionDigits:1})+'평';
 export const areaText = area=>'전용 '+area+'㎡ · '+pyeong(area);
 
-function distance(a,b){const rad=x=>x*Math.PI/180;const h=Math.sin(rad(b[0]-a[0])/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(rad(b[1]-a[1])/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(h)));}
-function commuteCandidates(city,range,mode){
- return city.areas.flatMap(([name,lat,lng,car,bus,rent,jeonse,...environment])=>{
-  const km=distance(city.work,[lat,lng]);
-  const commute=mode==='자차'?car:mode==='대중교통'?bus:Math.min(car,bus);
-  if(range&&(range.unit==='km'?km>range.value:commute>range.value))return [];
-  return [{name,at:[lat,lng],km,commute,rent,jeonse,environment}];
- }).sort((a,b)=>a.commute-b.commute||a.km-b.km);
-}
-
-export function getRecommendations(answers) {
- const [city,range,mode,,type,building,,budget,depositCeiling,pref]=answers;
- if(!city)return [];
- return commuteCandidates(city,range,mode).map((row,index)=>{
-  const base={...row,commuteRank:index+1,failures:[]};
-  if(!type)return base;
-  // Synthetic price examples for each supported building type.
-  const prices=buildingTypes
-   .filter(option=>!building||building===noPreference||building===option.name)
-   .map(option=>{
-    const price=type==='전세'?Math.round(row.jeonse*option.jeonseFactor/100)*100:Math.round(row.rent*option.rentFactor);
-    const rentDeposit=type==='월세'?option.rentDeposit:null;
-    const failures=[];
-    if(budget!=null&&price>budget)failures.push(type+' 한도 '+money(price-budget)+' 초과');
-    if(depositCeiling!=null&&rentDeposit>depositCeiling)failures.push('보증금 한도 '+money(rentDeposit-depositCeiling)+' 초과');
-    return {building:option.name,price,rentDeposit,area:option.areas[1],areas:option.areas,failures};
-   })
-   .sort((a,b)=>a.failures.length-b.failures.length||a.price-b.price);
-  const priceSample=prices[0];
-  const {environment,commute,km}=row;
-  const environmentScore=pref?.length?environment.reduce((sum,value,i)=>sum+value*(pref.includes(i)?3:1),0)/(3+2*pref.length):environment.reduce((sum,value)=>sum+value,0)/3;
-  const commuteScore=range?.unit==='분'?100-commute/range.value*50:100-km/(range?.value||10)*50;
-  const budgetScore=budget?100-priceSample.price/budget*50:50;
-  const score=Math.round(environmentScore*.60+Math.max(0,commuteScore)*.25+Math.max(0,budgetScore)*.15);
-  return {...base,environmentScore,score,...priceSample};
- }).sort((a,b)=>Number(Boolean(a.failures.length))-Number(Boolean(b.failures.length))
-  ||(pref&&!a.failures.length?b.score-a.score:0)||a.commuteRank-b.commuteRank)
-  .map((row,index)=>({...row,rank:pref&&!row.failures.length?index+1:null}));
-}
-
 const questions=[
  ['새 직장은 어디에 있어요?','도시나 근무지 이름을 알려주세요.','예: 대전 둔산동에서 일해요',['대전 둔산동','부산 센텀시티','전주 전북대','청주 오송']],
  ['출퇴근은 편도로 어디까지 괜찮아요?','시간 또는 직선거리 기준으로 동네 범위를 좁혀볼게요.','예: 편도 30분 또는 5km',['20분','30분','5km','10km']],
