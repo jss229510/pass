@@ -1,5 +1,6 @@
 package com.housing.global.recommendation;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -41,69 +42,95 @@ public class LocalRecommendationController {
             ))
     );
 
+    private static final List<BuildingType> BUILDING_TYPES = List.of(
+            new BuildingType("아파트", 1.16, 2000, 1.18, List.of(39, 59, 84)),
+            new BuildingType("빌라", .90, 1000, .86, List.of(26, 39, 52)),
+            new BuildingType("오피스텔", 1, 500, 1, List.of(20, 29, 43)),
+            new BuildingType("단독·다가구", .80, 300, .72, List.of(19, 27, 41))
+    );
+    private static final String NO_PREFERENCE = "상관없음";
+
+    /** 프런트 maruRecommendation.getRecommendations와 같은 규칙으로 계산한다. */
     @PostMapping
     public List<RecommendationResponse> recommend(@RequestBody JsonNode answers) {
-        JsonNode cityAnswer = answers.path(0);
-        City city = CITIES.get(cityAnswer.path("name").asText());
+        City city = CITIES.get(answers.path(0).path("name").asString(""));
         if (city == null) return List.of();
 
         JsonNode range = answers.path(1);
+        boolean hasRange = range.path("value").isNumber();
         double rangeValue = range.path("value").asDouble(0);
-        String rangeUnit = range.path("unit").asText();
-        String mode = answers.path(2).asText("대중교통");
-        String leaseType = answers.path(4).asText();
-        String building = answers.path(5).asText();
-        double budget = answers.path(7).asDouble(0);
-        double depositCeiling = answers.path(8).asDouble(-1);
+        String rangeUnit = range.path("unit").asString("");
+        String mode = answers.path(2).asString("");
+        String leaseType = answers.path(4).isString() ? answers.path(4).asString() : "";
+        String building = answers.path(5).isString() ? answers.path(5).asString() : "";
+        Integer budget = answers.path(7).isNumber() ? answers.path(7).asInt() : null;
+        Integer depositCeiling = answers.path(8).isNumber() ? answers.path(8).asInt() : null;
+        boolean hasPreference = answers.path(9).isArray();
         List<Integer> preferences = new ArrayList<>();
         answers.path(9).forEach(value -> preferences.add(value.asInt()));
 
-        if (leaseType.isBlank()) return city.areas().stream().map(area -> baseResponse(city, area, mode)).toList();
-        BuildingFactor factor = buildingFactor(building);
-        List<RecommendationResponse> results = new ArrayList<>();
+        List<Candidate> candidates = new ArrayList<>();
         for (Area area : city.areas()) {
             double km = distance(city.lat(), city.lng(), area.lat(), area.lng());
             int commute = "자차".equals(mode) ? area.car() : "대중교통".equals(mode) ? area.bus() : Math.min(area.car(), area.bus());
-            if (rangeValue > 0 && ("km".equals(rangeUnit) ? km > rangeValue : commute > rangeValue)) continue;
-            int price = "전세".equals(leaseType) ? roundHundred(area.jeonse() * factor.jeonseFactor()) : (int) Math.round(area.rent() * factor.rentFactor());
-            Integer rentDeposit = "월세".equals(leaseType) ? factor.rentDeposit() : null;
-            List<String> failures = new ArrayList<>();
-            if (budget > 0 && price > budget) failures.add("예산 한도 초과");
-            if (rentDeposit != null && depositCeiling >= 0 && rentDeposit > depositCeiling) failures.add("보증금 한도 초과");
-            double environmentScore = environmentScore(area.environment(), preferences);
-            double commuteScore = "분".equals(rangeUnit) && rangeValue > 0 ? 100 - commute / rangeValue * 50 : 100 - km / (rangeValue > 0 ? rangeValue : 10) * 50;
-            double budgetScore = budget > 0 ? 100 - ((double) price / budget) * 50 : 50;
-            int score = (int) Math.round(environmentScore * .60 + Math.max(0, commuteScore) * .25 + Math.max(0, budgetScore) * .15);
-            results.add(new RecommendationResponse(area.name(), List.of(area.lat(), area.lng()), km, commute, price, rentDeposit,
-                    factor.area(), factor.areas(), area.environment(), environmentScore, score, failures, 0, null));
+            if (hasRange && ("km".equals(rangeUnit) ? km > rangeValue : commute > rangeValue)) continue;
+            candidates.add(new Candidate(area, km, commute));
         }
+        candidates.sort(Comparator.comparingInt(Candidate::commute).thenComparingDouble(Candidate::km));
+
+        List<RecommendationResponse> results = new ArrayList<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            Candidate candidate = candidates.get(index);
+            Area area = candidate.area();
+            if (leaseType.isBlank()) {
+                results.add(new RecommendationResponse(area.name(), List.of(area.lat(), area.lng()), candidate.km(), candidate.commute(),
+                        index + 1, null, 0, null, 0, List.of(), area.environment(), 0, 0, List.of(), null));
+                continue;
+            }
+            PriceSample sample = BUILDING_TYPES.stream()
+                    .filter(option -> building.isBlank() || NO_PREFERENCE.equals(building) || building.equals(option.name()))
+                    .map(option -> priceSample(option, area, leaseType, budget, depositCeiling))
+                    .min(Comparator.comparingInt((PriceSample row) -> row.failures().size()).thenComparingInt(PriceSample::price))
+                    .orElseThrow();
+            double environmentScore = environmentScore(area.environment(), preferences);
+            double commuteScore = "분".equals(rangeUnit)
+                    ? 100 - candidate.commute() / rangeValue * 50
+                    : 100 - candidate.km() / (rangeValue > 0 ? rangeValue : 10) * 50;
+            double budgetScore = budget != null && budget > 0 ? 100 - (double) sample.price() / budget * 50 : 50;
+            int score = (int) Math.round(environmentScore * .60 + Math.max(0, commuteScore) * .25 + Math.max(0, budgetScore) * .15);
+            results.add(new RecommendationResponse(area.name(), List.of(area.lat(), area.lng()), candidate.km(), candidate.commute(),
+                    index + 1, sample.building(), sample.price(), sample.rentDeposit(), sample.area(), sample.areas(),
+                    area.environment(), environmentScore, score, sample.failures(), null));
+        }
+
+        if (leaseType.isBlank()) return results;
         results.sort(Comparator.comparing((RecommendationResponse row) -> !row.failures().isEmpty())
-                .thenComparing(RecommendationResponse::score, Comparator.reverseOrder())
-                .thenComparing(RecommendationResponse::commute));
+                .thenComparing((left, right) -> hasPreference && left.failures().isEmpty() && right.failures().isEmpty()
+                        ? Integer.compare(right.score(), left.score()) : 0)
+                .thenComparingInt(RecommendationResponse::commuteRank));
         List<RecommendationResponse> ranked = new ArrayList<>();
-        int rank = 1;
         for (int index = 0; index < results.size(); index++) {
             RecommendationResponse row = results.get(index);
-            Integer rowRank = !preferences.isEmpty() && row.failures().isEmpty() ? rank++ : null;
-            ranked.add(new RecommendationResponse(row.name(), row.at(), row.km(), row.commute(), row.price(), row.rentDeposit(),
-                    row.area(), row.areas(), row.environment(), row.environmentScore(), row.score(), row.failures(), index + 1, rowRank));
+            ranked.add(row.withRank(hasPreference && row.failures().isEmpty() ? index + 1 : null));
         }
         return ranked;
     }
 
-    private RecommendationResponse baseResponse(City city, Area area, String mode) {
-        int commute = "자차".equals(mode) ? area.car() : area.bus();
-        return new RecommendationResponse(area.name(), List.of(area.lat(), area.lng()), distance(city.lat(), city.lng(), area.lat(), area.lng()),
-                commute, 0, null, 0, List.of(), area.environment(), 0, 0, List.of(), 0, null);
+    private PriceSample priceSample(BuildingType option, Area area, String leaseType, Integer budget, Integer depositCeiling) {
+        boolean jeonse = "전세".equals(leaseType);
+        int price = jeonse ? roundHundred(area.jeonse() * option.jeonseFactor()) : (int) Math.round(area.rent() * option.rentFactor());
+        Integer rentDeposit = "월세".equals(leaseType) ? option.rentDeposit() : null;
+        List<String> failures = new ArrayList<>();
+        if (budget != null && price > budget) failures.add(leaseType + " 한도 " + money(price - budget) + " 초과");
+        if (depositCeiling != null && rentDeposit != null && rentDeposit > depositCeiling) {
+            failures.add("보증금 한도 " + money(rentDeposit - depositCeiling) + " 초과");
+        }
+        return new PriceSample(option.name(), price, rentDeposit, option.areas().get(1), option.areas(), failures);
     }
 
-    private BuildingFactor buildingFactor(String building) {
-        return switch (building) {
-            case "아파트" -> new BuildingFactor(1.16, 1.18, 2000, 59, List.of(39, 59, 84));
-            case "빌라" -> new BuildingFactor(.90, .86, 1000, 39, List.of(26, 39, 52));
-            case "단독·다가구" -> new BuildingFactor(.80, .72, 300, 27, List.of(19, 27, 41));
-            default -> new BuildingFactor(1, 1, 500, 29, List.of(20, 29, 43));
-        };
+    private static String money(int value) {
+        DecimalFormat format = new DecimalFormat("#,##0.###");
+        return value >= 10000 ? format.format(value / 10000.0) + "억 원" : format.format(value) + "만 원";
     }
 
     private int roundHundred(double value) { return (int) Math.round(value / 100) * 100; }
@@ -123,8 +150,15 @@ public class LocalRecommendationController {
     private record Area(String name, double lat, double lng, int car, int bus, int rent, int jeonse, int amenity, int quiet, int park) {
         List<Integer> environment() { return List.of(amenity, quiet, park); }
     }
-    private record BuildingFactor(double rentFactor, double jeonseFactor, int rentDeposit, int area, List<Integer> areas) { }
-    public record RecommendationResponse(String name, List<Double> at, double km, int commute, int price, Integer rentDeposit,
-                                         int area, List<Integer> areas, List<Integer> environment, double environmentScore,
-                                         int score, List<String> failures, int commuteRank, Integer rank) { }
+    private record BuildingType(String name, double rentFactor, int rentDeposit, double jeonseFactor, List<Integer> areas) { }
+    private record Candidate(Area area, double km, int commute) { }
+    private record PriceSample(String building, int price, Integer rentDeposit, int area, List<Integer> areas, List<String> failures) { }
+    public record RecommendationResponse(String name, List<Double> at, double km, int commute, int commuteRank, String building,
+                                         int price, Integer rentDeposit, int area, List<Integer> areas, List<Integer> environment,
+                                         double environmentScore, int score, List<String> failures, Integer rank) {
+        RecommendationResponse withRank(Integer nextRank) {
+            return new RecommendationResponse(name, at, km, commute, commuteRank, building, price, rentDeposit, area, areas,
+                    environment, environmentScore, score, failures, nextRank);
+        }
+    }
 }

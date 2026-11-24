@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import maruImage from "../assets/maru-guide-v2.png";
 import {
   addAnswer, agencies, answerLabel, areaText, cities, envNames, getQuestion,
-  isSkipped, marketSample, money, names,
+  getRecommendations, isSkipped, marketSample, money, names,
   noPreference, priceText, pyeong, step, totalSteps,
 } from "../data/maruRecommendation";
 import { recordRecentRegion } from "../utils/recentRegionsStore";
@@ -400,9 +400,11 @@ export default function AiRecommendationPage({ flow, onFlowChange, onBack, onSav
   const guidedChoice = demoScenario?.answers[answers.length];
   const [city, , mode, , type] = answers;
   const [rows, setRows] = useState([]);
+  const [usingFallback, setUsingFallback] = useState(false);
   useEffect(() => {
     if (!city) {
       setRows([]);
+      setUsingFallback(false);
       return undefined;
     }
     let cancelled = false;
@@ -411,10 +413,15 @@ export default function AiRecommendationPage({ flow, onFlowChange, onBack, onSav
       body: JSON.stringify(answers),
     })
       .then((value) => {
-        if (!cancelled) setRows(Array.isArray(value) ? value : []);
+        if (cancelled) return;
+        setRows(Array.isArray(value) ? value : []);
+        setUsingFallback(false);
       })
       .catch(() => {
-        if (!cancelled) setRows([]);
+        // 추천 서버에 연결할 수 없으면 같은 규칙의 프런트 예시 데이터로 계산합니다.
+        if (cancelled) return;
+        setRows(getRecommendations(answers));
+        setUsingFallback(true);
       });
     return () => { cancelled = true; };
   }, [answers, city]);
@@ -486,6 +493,7 @@ export default function AiRecommendationPage({ flow, onFlowChange, onBack, onSav
       <aside ref={conversationRef} className="maru-conversation" aria-label="마루와 대화">
         <div className="maru-profile"><img src={maruImage} alt="마루" /><div><strong>마루</strong><p>이사할 동네를 같이 찾아요</p></div></div>
         {demoScenario && <div className="maru-lh"><strong>서울에서 부산으로 이사하는 발표 예시</strong></div>}
+        {usingFallback && <p className="maru-reason" role="status">추천 서버에 연결하지 못해 같은 규칙의 예시 데이터로 계산했어요.</p>}
         {city && !done && <div className="maru-lh"><strong>{city.name} LH 공공임대</strong><p>접수 상태 미확인</p><a href="https://apply.lh.or.kr/" target="_blank" rel="noreferrer">공고 확인 ↗</a></div>}
         {(!done || showConditions) && <>
           <nav className="maru-steps" aria-label="추천 조건">{names.map((name, index) => index === step.arrival || isSkipped(index, answers) ? null : <button type="button" key={name}

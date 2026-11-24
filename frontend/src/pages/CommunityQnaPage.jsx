@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { apiRequest, getServerSession } from "../utils/apiClient";
 
 const categories = ["전체", "지역·매물", "계약·보증", "청년 지원", "이사 준비"];
 
@@ -91,13 +92,48 @@ function maskAuthor(name) {
   return name.length <= 2 ? `${name[0]}*` : `${name.slice(0, 2)}${"*".repeat(Math.min(name.length - 2, 3))}`;
 }
 
+// 서버 응답(이용자 질문 + 예시 질문의 도움돼요 기록)을 화면용 목록으로 합칩니다.
+function mergeCommunity(response) {
+  const posts = (response?.questions ?? []).map((question) => ({
+    ...question,
+    helpful: question.helpfulCount,
+    author: question.mine ? "나" : question.author,
+  }));
+  const seeds = initialQuestions.map((question) => {
+    const votes = response?.helpful?.[question.id];
+    return { ...question, helpful: question.helpful + (votes?.count ?? 0), helped: Boolean(votes?.helped) };
+  });
+  return [...posts, ...seeds];
+}
+
 function CommunityQnaPage({ onNavigate, onNotify }) {
   const [questions, setQuestions] = useState(initialQuestions);
+  const [isServerReady, setIsServerReady] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [category, setCategory] = useState("전체");
   const [keyword, setKeyword] = useState("");
   const [sort, setSort] = useState("latest");
   const [openId, setOpenId] = useState(null);
   const [helpedIds, setHelpedIds] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest("/api/community/questions")
+      .then((response) => {
+        if (cancelled) return;
+        const merged = mergeCommunity(response);
+        setQuestions(merged);
+        setHelpedIds(merged.filter((question) => question.helped).map((question) => question.id));
+        setIsServerReady(true);
+      })
+      .catch(() => {
+        // 서버에 연결할 수 없으면 예시 질문만 보여 주고, 새 글은 이 화면에서만 유지합니다.
+        if (!cancelled) setIsServerReady(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [isWriting, setIsWriting] = useState(false);
   const [draft, setDraft] = useState({ category: categories[1], title: "", body: "" });
 
@@ -111,29 +147,82 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
     return [...filtered].sort((a, b) => (sort === "helpful" ? b.helpful - a.helpful : b.id - a.id));
   }, [questions, category, keyword, sort]);
 
-  const toggleHelpful = (id) => {
-    const alreadyHelped = helpedIds.includes(id);
-    setHelpedIds((ids) => (alreadyHelped ? ids.filter((value) => value !== id) : [...ids, id]));
-    setQuestions((list) => list.map((question) => (question.id === id ? { ...question, helpful: question.helpful + (alreadyHelped ? -1 : 1) } : question)));
+  const applyHelpful = (id, helped, delta) => {
+    setHelpedIds((ids) => (helped ? [...new Set([...ids, id])] : ids.filter((value) => value !== id)));
+    setQuestions((list) => list.map((question) => (question.id === id ? { ...question, helpful: question.helpful + delta } : question)));
   };
 
-  const submitQuestion = (event) => {
-    event.preventDefault();
-    if (!draft.title.trim() || !draft.body.trim()) {
-      onNotify("질문 제목과 내용을 모두 입력해 주세요.");
+  const toggleHelpful = (id) => {
+    const alreadyHelped = helpedIds.includes(id);
+    if (!isServerReady) {
+      applyHelpful(id, !alreadyHelped, alreadyHelped ? -1 : 1);
       return;
     }
-    const today = new Date();
-    const date = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
-    const nextId = Math.max(...questions.map((question) => question.id)) + 1;
-    setQuestions((list) => [{ id: nextId, category: draft.category, title: draft.title.trim(), body: draft.body.trim(), author: "나", date, helpful: 0, answers: [] }, ...list]);
+    if (!getServerSession()) {
+      onNotify("로그인하면 도움돼요를 남길 수 있어요.");
+      return;
+    }
+    applyHelpful(id, !alreadyHelped, alreadyHelped ? -1 : 1);
+    apiRequest(`/api/community/questions/${id}/helpful`, { method: "POST" })
+      .then((result) => {
+        if (result.helped === !alreadyHelped) return;
+        // 다른 탭에서 이미 바뀐 경우 서버 상태에 맞춥니다.
+        applyHelpful(id, result.helped, alreadyHelped ? 1 : -1);
+      })
+      .catch((error) => {
+        applyHelpful(id, alreadyHelped, alreadyHelped ? 1 : -1);
+        onNotify(error.message || "도움돼요를 저장하지 못했어요.");
+      });
+  };
+
+  const showNewQuestion = (question, message) => {
+    setQuestions((list) => [question, ...list.filter((item) => item.id !== question.id)]);
     setDraft({ category: categories[1], title: "", body: "" });
     setIsWriting(false);
     setCategory("전체");
     setKeyword("");
     setSort("latest");
-    setOpenId(nextId);
-    onNotify("질문이 등록되었어요. 목업 화면이라 새로고침하면 사라집니다.");
+    setOpenId(question.id);
+    onNotify(message);
+  };
+
+  const addLocalQuestion = () => {
+    const today = new Date();
+    const date = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}`;
+    const nextId = Math.max(...questions.map((question) => question.id)) + 1;
+    showNewQuestion(
+      { id: nextId, category: draft.category, title: draft.title.trim(), body: draft.body.trim(), author: "나", date, helpful: 0, answers: [] },
+      "서버에 연결하지 못해 이 화면에만 질문을 보여 줘요. 새로고침하면 사라집니다.",
+    );
+  };
+
+  const submitQuestion = async (event) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+    if (!draft.title.trim() || !draft.body.trim()) {
+      onNotify("질문 제목과 내용을 모두 입력해 주세요.");
+      return;
+    }
+    if (!isServerReady) {
+      addLocalQuestion();
+      return;
+    }
+    if (!getServerSession()) {
+      onNotify("로그인하면 질문을 남길 수 있어요. 작성한 내용은 그대로 남겨 둘게요.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const saved = await apiRequest("/api/community/questions", {
+        method: "POST",
+        body: JSON.stringify({ category: draft.category, title: draft.title.trim(), body: draft.body.trim() }),
+      });
+      showNewQuestion({ ...saved, helpful: saved.helpfulCount, author: "나" }, "질문이 등록되었어요. 다른 이용자도 볼 수 있어요.");
+    } catch (error) {
+      onNotify(error.message || "질문을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -229,7 +318,7 @@ function CommunityQnaPage({ onNavigate, onNotify }) {
           <textarea value={draft.body} onChange={(event) => setDraft((value) => ({ ...value, body: event.target.value }))} placeholder="상황을 구체적으로 적어 주면 더 정확한 답변을 받을 수 있어요. 주소·연락처 같은 개인정보는 입력하지 마세요." aria-label="질문 내용" />
           <div className="qna-form-actions">
             <button className="cancel" type="button" onClick={() => setIsWriting(false)}>취소</button>
-            <button className="submit cta-button" type="submit">등록하기</button>
+            <button className="submit cta-button" type="submit" disabled={isSubmitting}>{isSubmitting ? "등록 중…" : "등록하기"}</button>
           </div>
         </form>
       )}

@@ -38,6 +38,28 @@ export const STORAGE_KEYS = {
 
 const DRAFT_VERSION = 1;
 
+// 이사 조건이 바뀌면(저장·서버에서 받아오기·초기화) 화면이 다시 읽도록 알린다.
+export const MOVE_CONDITIONS_EVENT = "housing:move-conditions-changed";
+const notifyMoveConditions = () => {
+  try {
+    window.dispatchEvent(new Event(MOVE_CONDITIONS_EVENT));
+  } catch {
+    // window가 없는 환경(테스트 등)
+  }
+};
+
+export const subscribeMoveConditions = (listener) => {
+  const onStorage = (event) => {
+    if (event.key === null || event.key === STORAGE_KEYS.conditions) listener();
+  };
+  window.addEventListener(MOVE_CONDITIONS_EVENT, listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(MOVE_CONDITIONS_EVENT, listener);
+    window.removeEventListener("storage", onStorage);
+  };
+};
+
 export const ROOM_TYPES = ["원룸", "1.5룸", "투룸"];
 export const DEAL_TYPES = ["월세", "전세"];
 export const MAX_TARGET_REGIONS = 5;
@@ -279,6 +301,7 @@ export const saveMoveConditions = (answers) => {
   const ok = writeJson(STORAGE_KEYS.conditions, normalized);
   if (ok) {
     syncRecommendationDraft(normalized);
+    notifyMoveConditions();
     apiRequest("/api/my/state/conditions", {
       method: "PUT",
       body: JSON.stringify(normalized),
@@ -372,7 +395,11 @@ export const markOnboardingDone = () => {
 };
 
 /** 개발·테스트용: 온보딩을 처음부터 다시 보게 한다. */
-export const resetOnboarding = () => [STORAGE_KEYS.draft, STORAGE_KEYS.conditions, STORAGE_KEYS.done].every(removeKey);
+export const resetOnboarding = () => {
+  const ok = [STORAGE_KEYS.draft, STORAGE_KEYS.conditions, STORAGE_KEYS.done].every(removeKey);
+  notifyMoveConditions();
+  return ok;
+};
 
 export const hydrateMoveConditions = async () => {
   try {
@@ -381,6 +408,7 @@ export const hydrateMoveConditions = async () => {
     const normalized = normalizeAnswers(saved);
     if (!writeJson(STORAGE_KEYS.conditions, normalized)) return false;
     syncRecommendationDraft(normalized);
+    notifyMoveConditions();
     return true;
   } catch {
     return false;

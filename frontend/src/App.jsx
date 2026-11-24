@@ -267,7 +267,7 @@ function App() {
       <main className={step === "landing" ? "container landing-container" : isOnboardingLayout ? "onboarding-container" : isStandalonePage ? "auth-container" : step === "moving-journey" ? "journey-container" : "container"}>
         {step === "landing" && (
           <LandingPage properties={properties} onStartJourney={() => openJourney()}
-            onStartAnalysis={startJourneyAnalysis} onNavigate={setStep} onPropertyDetail={openPropertyDetail} />
+            onStartAnalysis={startJourneyAnalysis} onNavigate={setStep} onPropertyDetail={openPropertyDetail} onOpenRegionSearch={openRegionSearch} />
         )}
         {isAuthPage && <AuthPage mode={step} onModeChange={setStep} onComplete={completeAuth} />}
         {step === "onboarding" && <OnboardingPage onComplete={() => navigate("landing", {}, true)} onNotify={notify} />}

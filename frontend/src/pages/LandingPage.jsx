@@ -1,12 +1,39 @@
 import React from "react";
 import MarketPriceSection from "../components/MarketPriceSection";
 import maruImage from "../assets/maru-guide-v2.png";
+import { formatPrice } from "../utils/marketPrices";
+import { useRegionRecommendations } from "../utils/regionRecommendations";
 
-const recommendedRegions = [
-  { id: "sangdo", name: "서울 동작구 상도동", description: "서울 서남권 생활권 · 통근 동선 확인", image: "https://img.khan.co.kr/newsmaker/1488/1488_41.jpg", imageAlt: "서울 상도동 주거 골목" },
-  { id: "yeongtong", name: "경기 수원시 영통구 영통동", description: "수인분당선 생활권 · 생활 편의 확인", image: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Suwon.jpg", imageAlt: "수원 영통구 상권 거리" },
-  { id: "jeonpo", name: "부산 부산진구 전포동", description: "서면 인접 생활권 · 상권과 주거 환경 확인", image: "https://www.busan.go.kr/ImagePrint.do?dir=smartEditor&fileext=jpg&filesize=337488&filetype=image%2Fjpeg&realname=4-5-2%EC%A0%84%ED%8F%AC%EB%8F%99%EC%B9%B4%ED%8E%98%EA%B1%B0%EB%A6%AC_%EC%9D%B4%EB%AF%BC%EC%9E%AC_cw16.jpg&savename=d65d096ecb864486bd0703bd50efd184", imageAlt: "부산 전포동 카페거리" },
-];
+function RecommendedRegions({ recommendations, onNavigate, onOpenRegionSearch }) {
+  if (!recommendations) {
+    return <div className="area-list" aria-busy="true">{[0, 1, 2].map((index) => <div className="area-card area-card-loading" key={index} />)}</div>;
+  }
+  const { personalized, items, roomType, dealType } = recommendations;
+  return (
+    <>
+      <p className="candidate-basis">
+        {personalized
+          ? `내 기본 정보(희망 지역·근무지·예산·중요도) 기준 · ${roomType} ${dealType}`
+          : "기본 정보를 입력하면 내 조건에 맞는 지역을 추천해 드려요."}
+        {!personalized && <button type="button" className="candidate-basis-link" onClick={() => onNavigate("onboarding")}>기본 정보 입력 →</button>}
+      </p>
+      <ol className="area-list">
+        {items.map(({ region, snapshot, score, reasons }, index) => (
+          <li key={region.id}>
+            <button className="area-card" type="button" onClick={() => onOpenRegionSearch(region.label)} title="지도에서 보기">
+              <span className="area-rank">
+                {index + 1}위{score !== null && <em>적합도 {score}점</em>}
+              </span>
+              <b>{region.label}</b>
+              <span className="area-reasons">{reasons.slice(0, 2).join(" · ")}</span>
+              <small className="area-price">{roomType} {dealType} {formatPrice(snapshot)}</small>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
 
 function FeatureIcon({ type }) {
   if (type === "environment") return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s7-4.7 7-11a7 7 0 1 0-14 0c0 6.3 7 11 7 11Z" /><circle cx="12" cy="10" r="2.5" /><path d="M17.5 17.2 21 20.5M18.7 19.2l1.8-1.8" /></svg>;
@@ -14,8 +41,11 @@ function FeatureIcon({ type }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8.5 15l2.1 2.1 4.5-4.5" /></svg>;
 }
 
-function LandingPage({ onStartJourney, onStartAnalysis, onNavigate }) {
+function LandingPage({ onStartJourney, onStartAnalysis, onNavigate, onOpenRegionSearch }) {
   const guideSteps = ["조건 입력", "매물 추천", "매물 비교", "계약 점검"];
+  // AI 추천 카드와 지역별 시세가 같은 추천 결과를 쓴다.
+  const recommendations = useRegionRecommendations();
+  const openRegion = onOpenRegionSearch ?? (() => onNavigate("property-map-search"));
 
   return (
     <section className="housing-landing">
@@ -81,11 +111,11 @@ function LandingPage({ onStartJourney, onStartAnalysis, onNavigate }) {
         <div className="content-top">
           <section className="candidate-section">
             <div className="candidate-heading"><h2>AI가 추천한 지역</h2><button className="candidate-shortcut" type="button" onClick={() => onNavigate("property-map-search")}>지도에서 보기</button></div>
-            <div className="area-list">{recommendedRegions.map((region) => <button className="area-card" type="button" key={region.id} onClick={() => onNavigate("property-map-search")}><img src={region.image} alt={region.imageAlt} /><div><b>{region.name}</b><span>{region.description}</span></div></button>)}</div>
+            <RecommendedRegions recommendations={recommendations} onNavigate={onNavigate} onOpenRegionSearch={openRegion} />
           </section>
           <section><div className="easy-title"><h2>AI가 이사 결정을 돕는 세 가지</h2></div><div className="easy-list"><div className="easy-item"><i className="easy-icon"><FeatureIcon type="environment" /></i><div><b>주변환경지수 분석</b><span>교통·치안·소음·날씨·편의시설을<br />점수로 비교해요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="contract" /></i><div><b>계약서 질문 생성</b><span>관리비 등 확인할 질문을<br />계약서 내용에 맞춰 만들어요.</span></div></div><div className="easy-item"><i className="easy-icon"><FeatureIcon type="move" /></i><div><b>입주 계획 정리</b><span>청년지원·필수 서류·입주일까지<br />해야 할 일을 정리해요.</span></div></div></div></section>
         </div>
-        <MarketPriceSection onNavigate={onNavigate} />
+        <MarketPriceSection onNavigate={onNavigate} recommendations={recommendations} />
         <section className="flow-row">
           <div className="flow-intro"><b>이사 여정 한눈에 보기</b></div>
           <div className="flow-step"><b>동네 찾기</b><span>마루와 통근·예산에 맞는 후보를 골라요.</span></div>
@@ -94,7 +124,7 @@ function LandingPage({ onStartJourney, onStartAnalysis, onNavigate }) {
         </section>
         <div className="bottom-row"><section className="policy-banner"><span className="policy-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3 5 6v5c0 4.6 3 8.3 7 10 4-1.7 7-5.4 7-10V6l-7-3Z" /><path d="M8.5 12.5 11 15l4.5-5" /><path d="M3 19h5M16 19h5" /></svg></span><div><b>내가 받을 수 있는<br />청년 주거 혜택을 찾으세요.</b><span>지역별 월세 지원과 LH·SH 청약 정보를 조건에 맞춰 확인해 보세요.</span></div></section><section className="guide-entry"><button className="guide-entry-card" type="button" onClick={() => onNavigate("guide")}><span className="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" /><path d="M7 8h1.5M7 11h1.5M15.5 8H17M15.5 11H17" /></svg></span><div className="guide-entry-body"><b>이용 가이드</b><span>조건 입력부터 계약 전 점검까지,<br />서비스 이용 방법을 단계별로 안내해요.</span><ol className="guide-entry-steps">{guideSteps.map((label, index) => <li key={label}><i>{String(index + 1).padStart(2, "0")}</i>{label}</li>)}</ol></div></button></section></div>
         <style>{`
-          .bottom-row{grid-template-columns:1fr 1fr;align-items:start}.bottom-row>section{min-height:166px}.policy-banner{height:166px;justify-content:flex-start;gap:34px}.policy-banner>div{flex:0 1 auto}.bottom-row>section:last-child{padding:0}.candidate-heading{display:flex;align-items:start;justify-content:space-between}.candidate-heading .candidate-shortcut{margin:0;border:0;background:transparent;color:var(--color-primary-strong);font-size:12px;font-weight:800}.candidate-heading .candidate-shortcut:hover{text-decoration:underline}.area-card{font:inherit;text-align:left}.area-card:hover{border-color:var(--color-primary);background:var(--color-surface-soft)}@media(max-width:760px){.bottom-row>section,.policy-banner{min-height:auto;height:auto}.policy-banner{gap:20px}}
+          .bottom-row{grid-template-columns:1fr 1fr;align-items:start}.bottom-row>section{min-height:166px}.policy-banner{height:166px;justify-content:flex-start;gap:34px}.policy-banner>div{flex:0 1 auto}.bottom-row>section:last-child{padding:0}.candidate-heading{display:flex;align-items:start;justify-content:space-between}.candidate-heading .candidate-shortcut{margin:0;border:0;background:transparent;color:var(--color-primary-strong);font-size:12px;font-weight:800}.candidate-heading .candidate-shortcut:hover{text-decoration:underline}.area-card{font:inherit;text-align:left}.area-card:hover{border-color:var(--color-primary);background:var(--color-surface-soft)}.candidate-section{min-width:0}.candidate-section ol.area-list{margin:0;padding:0;list-style:none}.candidate-section ol.area-list>li{display:flex;flex:1;min-width:0}.candidate-section .area-card{flex-direction:column;align-items:stretch;gap:5px;width:100%;padding:12px 13px;background:#fff}.area-card .area-rank{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 2px;color:var(--color-primary-strong);font-size:12px;font-weight:900}.area-card .area-rank em{padding:2px 7px;border-radius:999px;background:var(--color-surface-soft);font-style:normal;font-size:11px;font-weight:800}.candidate-section .area-card b{font-size:14px;line-height:1.35;word-break:keep-all}.area-card .area-reasons{margin:0;line-height:1.45;word-break:keep-all}.area-card .area-price{display:block;margin-top:auto;padding-top:6px;border-top:1px solid var(--color-background);color:var(--color-text);font-size:12px;font-weight:800}.area-card-loading{min-height:88px;flex:1;background:var(--color-surface-soft)}.candidate-basis{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:-6px 0 12px;color:var(--color-text-muted);font-size:12px}.candidate-basis-link{padding:0;border:0;background:transparent;color:var(--color-primary-strong);font-size:12px;font-weight:800}.candidate-basis-link:hover{text-decoration:underline}@media(max-width:760px){.candidate-section ol.area-list>li{min-width:200px}}@media(max-width:760px){.bottom-row>section,.policy-banner{min-height:auto;height:auto}.policy-banner{gap:20px}}
         `}</style>
         <style>{`.guide-entry-card{display:flex;align-items:center;gap:26px;width:100%;height:166px;padding:25px 30px;border:1px solid var(--color-background);border-radius:13px;background:#fff;color:inherit;text-align:left;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}.guide-entry-card:hover{border-color:var(--color-primary);background:var(--color-surface);box-shadow:0 8px 22px rgb(var(--color-primary-rgb) / 0.071)}.guide-entry-icon{display:grid;place-items:center;flex:none;width:58px;height:58px;border-radius:50%;background:var(--color-surface-soft);color:var(--color-primary-strong)}.guide-entry-icon svg{width:28px;height:28px}.guide-entry-body{flex:1;min-width:0}.guide-entry-body>b{display:block;color:#18262b;font-size:21px;line-height:1.1;letter-spacing:-.5px}.guide-entry-body>span{display:block;margin-top:7px;font-size:11px;line-height:1.5;color:var(--color-text-muted)}.guide-entry-steps{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 0;padding:0;list-style:none}.guide-entry-steps li{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:var(--color-surface-soft);color:var(--color-text-secondary);font-size:11px}.guide-entry-steps i{font-style:normal;font-weight:800;color:var(--color-primary-strong);font-size:10px}.guide-entry-arrow{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:50%;background:var(--color-surface-soft);color:var(--color-primary-strong);font-size:18px;transition:transform .2s ease,background .2s ease,color .2s ease}.guide-entry-card:hover .guide-entry-arrow{transform:translateX(3px);background:var(--color-primary-strong);color:#fff}.guide-entry-card:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}@media(max-width:760px){.guide-entry-card{height:auto;gap:16px;padding:20px}.guide-entry-icon{width:48px;height:48px}.guide-entry-body>b{font-size:18px}.guide-entry-arrow{display:none}}`}</style>
       </main>

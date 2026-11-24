@@ -32,6 +32,7 @@ import {
 } from "../features/onboarding/conditionRows";
 import { formatManwon } from "../features/onboarding/format";
 import { loadUserState, saveUserState } from "../utils/userStateSync";
+import { fetchMarketPrices, findMarketRegion, formatDeposit, formatPrice, sparklinePoints } from "../utils/marketPrices";
 import { changePassword, clearMyData } from "../utils/authStore";
 import { clearUserLocalData } from "../utils/userLocalData";
 import "../styles/my-dashboard.css";
@@ -68,41 +69,70 @@ function loadUserProfile() {
   }
 }
 
-const recentRegionSamples = [
-  {
-    id: "yuseong",
-    name: "대전 유성구",
-    type: "출발지",
-    viewed: "오늘",
-    deposit: "1,000만원",
-    rent: "45만원",
-    change: 3.2,
-    volume: "128건",
-    values: "4,16 15,13 27,17 39,9 52,12 66,5",
-  },
-  {
-    id: "asan",
-    name: "충남 아산시",
-    type: "후보",
-    viewed: "어제",
-    deposit: "2,000만원",
-    rent: "38만원",
-    change: -1.8,
-    volume: "96건",
-    values: "4,8 16,11 27,7 39,14 52,12 66,15",
-  },
-  {
-    id: "bukgu",
-    name: "광주 북구",
-    type: "후보",
-    viewed: "3일 전",
-    deposit: "500만원",
-    rent: "41만원",
-    change: 5.1,
-    volume: "84건",
-    values: "4,18 16,15 27,12 39,15 52,8 66,5",
-  },
-];
+// 홈 시세 카드와 같은 /api/market-prices 응답(실패 시 같은 규칙의 목업)을 씁니다.
+function useMarketPrices(roomType, dealType) {
+  const [market, setMarket] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMarketPrices(roomType, dealType).then((value) => {
+      if (!cancelled) setMarket(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomType, dealType]);
+  return market;
+}
+
+const FAVORITE_ROOM_TYPES = ["원룸", "1.5룸", "투룸"];
+
+function useMonthlyMarkets() {
+  const [markets, setMarkets] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(FAVORITE_ROOM_TYPES.map((roomType) => fetchMarketPrices(roomType, "월세"))).then((values) => {
+      if (!cancelled) setMarkets(Object.fromEntries(FAVORITE_ROOM_TYPES.map((roomType, index) => [roomType, values[index]])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return markets;
+}
+
+function withFavoritePrices(region, markets) {
+  const [studio, oneHalf, twoRoom] = FAVORITE_ROOM_TYPES.map((roomType) => findMarketRegion(markets[roomType]?.regions, region.name));
+  return {
+    ...region,
+    marketId: studio?.id ?? null,
+    marketLabel: studio?.label ?? null,
+    studio: studio ? formatPrice(studio.snapshot) : "시세 없음",
+    oneHalf: oneHalf ? formatPrice(oneHalf.snapshot) : "-",
+    twoRoom: twoRoom ? formatPrice(twoRoom.snapshot) : "-",
+    change: studio ? studio.snapshot.change : null,
+    insufficient: !studio || studio.snapshot.samples < 10,
+  };
+}
+
+function ChangeText({ change }) {
+  if (change === null || change === undefined) return "-";
+  if (change === 0) return "– 0%";
+  return `${change > 0 ? "▲" : "▼"}${Math.abs(change)}%`;
+}
+
+const changeClass = (change, prefix) => (change > 0 ? `${prefix}-up` : change < 0 ? `${prefix}-down` : "");
+
+function routeSummary(market, fromId, toId) {
+  const from = market?.regions.find((region) => region.id === fromId);
+  const to = market?.regions.find((region) => region.id === toId);
+  if (!from || !to) return null;
+  const signed = (value, format) => `${value > 0 ? "+" : value < 0 ? "-" : "±"}${format(Math.abs(value))}원`;
+  return {
+    label: `${from.label} → ${to.label}`,
+    rent: from.snapshot.rent === null ? null : signed(to.snapshot.rent - from.snapshot.rent, (value) => `${value}만`),
+    deposit: signed(to.snapshot.deposit - from.snapshot.deposit, formatDeposit),
+  };
+}
 
 function formatViewedAt(viewedAt) {
   const minutes = Math.max(0, Math.floor((Date.now() - viewedAt) / 60000));
@@ -118,7 +148,7 @@ function Sparkline({ points }) {
     <svg
       className="dashboard-sparkline"
       viewBox="0 0 70 22"
-      aria-label="1년 월세 추이"
+      aria-label="1년 시세 추이"
     >
       <polyline
         points={points}
@@ -134,19 +164,13 @@ function Sparkline({ points }) {
 
 function loadFavoriteRegions() {
   const recentRegions = loadRecentRegions();
-  return loadFavoriteRegionNames().flatMap((name, index) => {
+  return loadFavoriteRegionNames().flatMap((name) => {
     const recent = recentRegions.find((region) => region.name === name);
     if (!recent) return [];
-    const sample = recentRegionSamples.find((region) => region.name === name) ?? recentRegionSamples[index % recentRegionSamples.length];
     return [{
       id: `favorite-${name}`,
       name,
       type: recent.source === "maru" ? "마루 추천" : "지역 검색",
-      studio: sample.rent,
-      oneHalf: "-",
-      twoRoom: "-",
-      change: sample.change,
-      insufficient: !recentRegionSamples.some((region) => region.name === name),
       memo: "최근 본 지역에서 관심 목록에 추가했어요.",
       addedAt: formatViewedAt(recent.viewedAt),
     }];
@@ -160,20 +184,28 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
   const [favorites, setFavorites] = useState(loadFavoriteRegionNames);
   const [notice, setNotice] = useState("");
   const status = "ready";
-  const recentRegions = loadRecentRegions().map((region, index) => ({
-    ...(recentRegionSamples.find((sample) => sample.name === region.name) ??
-      recentRegionSamples[index % recentRegionSamples.length]),
-    id: `${region.source}-${region.name}`,
-    name: region.name,
-    type: region.source === "maru" ? "마루 추천" : "지역 검색",
-    viewed: formatViewedAt(region.viewedAt),
-  }));
+  const market = useMarketPrices(filters.room, filters.deal);
+  const routeMarket = useMarketPrices("원룸", filters.deal);
+  const route = routeSummary(routeMarket, "daejeon-yuseong", "chungnam-asan");
+  const recentRegions = loadRecentRegions().map((region) => {
+    const matched = findMarketRegion(market?.regions, region.name);
+    return {
+      id: `${region.source}-${region.name}`,
+      name: region.name,
+      type: region.source === "maru" ? "마루 추천" : "지역 검색",
+      viewed: formatViewedAt(region.viewedAt),
+      marketId: matched?.id ?? null,
+      marketLabel: matched?.label ?? null,
+      snapshot: matched?.snapshot ?? null,
+      change: matched ? matched.snapshot.change : null,
+    };
+  });
   const regions = recentRegions.filter(
     (region) => regionFilter === "전체" || region.type === regionFilter,
   );
-  const largestChange = [...recentRegions].sort(
-    (left, right) => Math.abs(right.change) - Math.abs(left.change),
-  )[0];
+  const largestChange = recentRegions
+    .filter((region) => region.snapshot)
+    .sort((left, right) => Math.abs(right.change) - Math.abs(left.change))[0];
   const toggleSelected = (id) => {
     if (selected.includes(id)) {
       setSelected(selected.filter((item) => item !== id));
@@ -232,21 +264,22 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
           내 조건 수정
         </button>
       </header>
-      <section className="dashboard-insight">
-        <span>
-          <b>{filters.room}</b> 기준 최근 본 지역 중 1년 월세 변동률이 가장 큰
-          곳은 <b>{largestChange.name}</b>이에요. 지난 1년간{" "}
-          {largestChange.change > 0 ? "▲" : "▼"}
-          {Math.abs(largestChange.change)}% 변했어요.
-        </span>
-        <a
-          href={links.region(largestChange.id)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          자세히 보기 →
-        </a>
-      </section>
+      {largestChange && (
+        <section className="dashboard-insight">
+          <span>
+            <b>{filters.room} {filters.deal}</b> 기준 최근 본 지역 중 1년 변동률이 가장 큰
+            곳은 <b>{largestChange.name}</b>이에요. 지난 1년간{" "}
+            <ChangeText change={largestChange.change} /> 변했어요.
+          </span>
+          <a
+            href={links.region(largestChange.marketId)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            자세히 보기 →
+          </a>
+        </section>
+      )}
       <FilterBar value={filters} onChange={setFilters} />
       <section className="dashboard-kpis">
         {[
@@ -311,7 +344,7 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
                 <th>1년 추이</th>
                 <th>최근 중위값</th>
                 <th>1년 변동</th>
-                <th>월 거래량</th>
+                <th>표본</th>
                 <th>관심</th>
                 <th />
               </tr>
@@ -343,25 +376,31 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
                         {region.type}
                       </span>
                     </b>
-                    <small>최근 조회 {region.viewed}</small>
+                    <small>
+                      최근 조회 {region.viewed}
+                      {region.marketLabel && region.marketLabel !== region.name && ` · ${region.marketLabel} 시세`}
+                    </small>
                   </td>
                   <td>
-                    <Sparkline points={region.values} />
+                    {region.snapshot ? <Sparkline points={sparklinePoints(region.snapshot.series, 70, 22)} /> : "-"}
                   </td>
                   <td>
-                    보증금 {region.deposit}
-                    <br />
-                    월세 {region.rent}
+                    {!region.snapshot ? (
+                      "시세 없음"
+                    ) : region.snapshot.rent === null ? (
+                      <>전세 {formatDeposit(region.snapshot.deposit)}원</>
+                    ) : (
+                      <>
+                        보증금 {formatDeposit(region.snapshot.deposit)}원
+                        <br />
+                        월세 {region.snapshot.rent}만원
+                      </>
+                    )}
                   </td>
-                  <td
-                    className={
-                      region.change > 0 ? "dashboard-up" : "dashboard-down"
-                    }
-                  >
-                    {region.change > 0 ? "▲" : "▼"}
-                    {Math.abs(region.change)}%
+                  <td className={changeClass(region.change, "dashboard")}>
+                    <ChangeText change={region.change} />
                   </td>
-                  <td>{region.volume}</td>
+                  <td>{region.snapshot ? `${region.snapshot.samples}건` : "-"}</td>
                   <td>
                     <button
                       type="button"
@@ -402,8 +441,8 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
           </button>
         </div>
         <p className="dashboard-note">
-          * 중위값과 거래량은 데모 데이터이며, 실제 계약 전 최신 매물 정보를
-          확인해야 합니다.
+          * 홈 시세 카드와 같은 {market?.baseMonth ?? ""} 기준 중위값·표본 수예요. 데모
+          데이터이며, 실제 계약 전 최신 매물 정보를 확인해야 합니다.
         </p>
       </section>
       <section className="dashboard-bottom">
@@ -411,12 +450,12 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
           <h3>이사 경로 요약</h3>
           <div className="dashboard-route">
             <div>
-              <span>대전 유성구 → 충남 아산시</span>
-              <b>월세 -7만원</b>
+              <span>{route?.label ?? "대전 유성구 → 충남 아산시"}</span>
+              <b>{route ? (route.rent ? `월세 ${route.rent}` : "전세 기준") : "-"}</b>
             </div>
             <div>
-              <span>보증금 차이</span>
-              <b>+1,000만원</b>
+              <span>{route?.rent ? "보증금 차이" : "전세금 차이"}</span>
+              <b>{route?.deposit ?? "-"}</b>
             </div>
             <div>
               <span>관리비 / 교통비</span>
@@ -477,6 +516,8 @@ function Dashboard({ onNavigate, onOpenTab, onCompareRegions, onOpenRegionSearch
 
 function FavoriteRegions({ onNavigate }) {
   const [regions, setRegions] = useState(loadFavoriteRegions);
+  const markets = useMonthlyMarkets();
+  const pricedRegions = regions.map((region) => withFavoritePrices(region, markets));
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recent");
   const [view, setView] = useState("card");
@@ -492,15 +533,15 @@ function FavoriteRegions({ onNavigate }) {
   const [toast, setToast] = useState(null);
   const [notice, setNotice] = useState("");
   const status = "ready";
-  const hasOneHalf = regions.some((region) => region.oneHalf !== "-");
-  const hasTwoRoom = regions.some((region) => region.twoRoom !== "-");
-  const visible = [...regions]
+  const hasOneHalf = pricedRegions.some((region) => region.oneHalf !== "-");
+  const hasTwoRoom = pricedRegions.some((region) => region.twoRoom !== "-");
+  const visible = [...pricedRegions]
     .filter((region) => region.name.includes(query.trim()))
     .sort((left, right) =>
       sort === "name"
         ? left.name.localeCompare(right.name, "ko")
         : sort === "change"
-          ? Math.abs(right.change) - Math.abs(left.change)
+          ? Math.abs(right.change ?? 0) - Math.abs(left.change ?? 0)
           : 0,
     );
   const toggleSelect = (id) => {
@@ -565,7 +606,7 @@ function FavoriteRegions({ onNavigate }) {
           <h2>
             관심 목록 <span>{regions.length}</span>
           </h2>
-          <p>저장한 지역의 월세 흐름과 메모를 확인하세요.</p>
+          <p>저장한 지역의 월세 시세(홈 시세 카드와 같은 기준)와 메모를 확인하세요.</p>
         </div>
         <a href="/regions" target="_blank" rel="noreferrer">
           지역 추가 →
@@ -680,13 +721,8 @@ function FavoriteRegions({ onNavigate }) {
                   <td>{region.studio}</td>
                   {hasOneHalf && <td>{region.oneHalf}</td>}
                   {hasTwoRoom && <td>{region.twoRoom}</td>}
-                  <td
-                    className={
-                      region.change > 0 ? "favorite-up" : "favorite-down"
-                    }
-                  >
-                    {region.change > 0 ? "▲" : "▼"}
-                    {Math.abs(region.change)}%
+                  <td className={changeClass(region.change, "favorite")}>
+                    <ChangeText change={region.change} />
                   </td>
                   <td>
                     <button
@@ -707,7 +743,7 @@ function FavoriteRegions({ onNavigate }) {
                       ★
                     </button>{" "}
                     <a
-                      href={links.region(region.id)}
+                      href={links.region(region.marketId ?? region.id)}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -807,18 +843,17 @@ function FavoriteRegionCard({
         {region.twoRoom !== "-" && <div><dt>투룸</dt><dd>{region.twoRoom}</dd></div>}
       </dl>
       <div className="favorite-card-meta">
-        <b className={region.change > 0 ? "favorite-up" : "favorite-down"}>
-          1년 {region.change > 0 ? "▲" : "▼"}
-          {Math.abs(region.change)}%
+        <b className={changeClass(region.change, "favorite")}>
+          1년 <ChangeText change={region.change} />
         </b>
-        {region.insufficient && <span>표본 부족</span>}
+        {region.insufficient && <span>{region.marketLabel ? "표본 부족" : "시세 미제공 지역"}</span>}
       </div>
       <button type="button" className="favorite-memo-button" onClick={onMemo}>
         {region.memo}
       </button>
       <footer>
         <small>추가일 {region.addedAt}</small>
-        <a href={links.region(region.id)} target="_blank" rel="noreferrer">
+        <a href={links.region(region.marketId ?? region.id)} target="_blank" rel="noreferrer">
           상세 →
         </a>
       </footer>

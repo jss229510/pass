@@ -6,6 +6,22 @@ const COMPARE_HISTORY_STORAGE_KEY = "housingRegionCompareHistory";
 const MAX_RECENT_REGIONS = 6;
 const MAX_COMPARE_HISTORY = 10;
 
+// 최근 본 지역이 바뀌면 지역별 시세 카드가 다시 읽도록 알린다.
+export const RECENT_REGIONS_EVENT = "housing:recent-regions-changed";
+const notifyRecentRegions = () => window.dispatchEvent(new Event(RECENT_REGIONS_EVENT));
+
+export function subscribeRecentRegions(listener) {
+  const onStorage = (event) => {
+    if (event.key === null || event.key === STORAGE_KEY) listener();
+  };
+  window.addEventListener(RECENT_REGIONS_EVENT, listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(RECENT_REGIONS_EVENT, listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 const normalizeName = (value) => typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 const toNumberOrNull = (value) => Number.isFinite(value) ? value : null;
 
@@ -65,6 +81,7 @@ export function recordRecentRegion(name, source) {
   } catch {
     // Storage permission errors should not stop the current search flow.
   }
+  notifyRecentRegions();
   return next;
 }
 
@@ -153,7 +170,10 @@ export async function hydrateRecentRegionState() {
       apiRequest("/api/my/state/favorites"),
       apiRequest("/api/my/state/comparisons"),
     ]);
-    if (Array.isArray(recentRegions)) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recentRegions));
+    if (Array.isArray(recentRegions)) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recentRegions));
+      notifyRecentRegions();
+    }
     if (Array.isArray(favorites)) window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
     if (Array.isArray(comparisons)) window.localStorage.setItem(COMPARE_HISTORY_STORAGE_KEY, JSON.stringify(comparisons));
   } catch {

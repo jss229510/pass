@@ -73,6 +73,23 @@ public class LocalStateStore {
         return updated.deepCopy();
     }
 
+    /** 커뮤니티처럼 모든 사용자가 함께 보는 데이터를 사용자별 상태와 분리해 저장한다. */
+    public synchronized ObjectNode getShared(String key) {
+        return getOrCreateShared(key).deepCopy();
+    }
+
+    public synchronized <T> T updateShared(String key, java.util.function.Function<ObjectNode, T> updater) {
+        ObjectNode current = getOrCreateShared(key);
+        T result = updater.apply(current);
+        persist();
+        return result;
+    }
+
+    private ObjectNode getOrCreateShared(String key) {
+        ObjectNode shared = root.get("shared") instanceof ObjectNode node ? node : root.putObject("shared");
+        return shared.get(key) instanceof ObjectNode node ? node : shared.putObject(key);
+    }
+
     private ObjectNode getOrCreateUserState(String userId) {
         JsonNode existing = users().get(userId);
         if (existing instanceof ObjectNode objectNode) {
