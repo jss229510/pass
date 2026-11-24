@@ -59,6 +59,10 @@
       } ],
       "favorites" : [ "우동", "부평구" ],
       "recentRegions" : [ {
+        "name" : "계산구",
+        "source" : "search",
+        "viewedAt" : 1795541464093
+      }, {
         "name" : "대전 유성구 온천2동",
         "source" : "search",
         "viewedAt" : 1795523096739
@@ -164,6 +168,403 @@
         "disposalDue" : "D-30",
         "summary" : "분석 진행 중"
       } ]
+    },
+    "google-demo" : {
+      "account" : {
+        "email" : "google-demo@demo.local",
+        "nickname" : "테스트 사용자",
+        "passwordHash" : "$2a$10$6B8fkxFWwclY92ipdCdt/Ofu1PmBhes682ZWg.k.y/wZjU9lLm4um",
+        "provider" : "google",
+        "providerLabel" : "Google",
+        "createdAt" : "2026-11-24T17:33:23.874525400Z"
+      },
+      "journey" : {
+        "area" : {
+          "city" : "부산",
+          "name" : "우동",
+          "conditions" : "30분 이내 · 대중교통 · 월세"
+        },
+        "regions" : { },
+        "dates" : { }
+      },
+      "conditions" : {
+        "birthDate" : {
+          "y" : "2002",
+          "m" : "10",
+          "d" : "28"
+        },
+        "region" : {
+          "sido" : "인천광역시",
+          "sigungu" : "부평구"
+        },
+        "targetRegions" : [ {
+          "sido" : "서울특별시",
+          "sigungu" : "종로구"
+        } ],
+        "roomTypes" : [ "1.5룸" ],
+        "dealType" : "월세",
+        "depositBudget" : 1000,
+        "rentBudget" : 60,
+        "income" : {
+          "amount" : 100,
+          "basis" : "post_tax"
+        },
+        "monthlyExpense" : {
+          "total" : 60,
+          "detail" : null
+        },
+        "livesApart" : "no",
+        "homeless" : "yes",
+        "workRegion" : {
+          "sido" : "서울특별시",
+          "sigungu" : "종로구"
+        },
+        "maxCommute" : 80,
+        "weights" : {
+          "transport" : 3,
+          "housingCost" : 5,
+          "amenities" : 4,
+          "disaster" : 1
+        },
+        "optionalConsent" : "agreed",
+        "optionalConsentAt" : "2026-11-24T17:34:25.207Z"
+      },
+      "recentRegions" : [ {
+        "name" : "우동",
+        "source" : "maru",
+        "viewedAt" : 1795545421628
+      }, {
+        "name" : "동탄",
+        "source" : "search",
+        "viewedAt" : 1795542724930
+      }, {
+        "name" : "종각역",
+        "source" : "search",
+        "viewedAt" : 1795541812997
+      }, {
+        "name" : "종로구",
+        "source" : "search",
+        "viewedAt" : 1795541796229
+      } ],
+      "comparisons" : [ {
+        "id" : "서울 종로구 종로1가 54 · 54 넓은 1.5룸|서울 종로구 종로1가 54 · 54 넓은 원룸|서울 종로구 종로1가 54 · 54 넓은 투룸",
+        "regions" : [ "서울 종로구 종로1가 54 · 54 넓은 원룸", "서울 종로구 종로1가 54 · 54 넓은 투룸", "서울 종로구 종로1가 54 · 54 넓은 1.5룸" ],
+        "properties" : [ {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 원룸",
+          "title" : "54 넓은 원룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 59,
+          "maintenance" : 9,
+          "area" : 25,
+          "score" : 85
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 투룸",
+          "title" : "54 넓은 투룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 85,
+          "maintenance" : 10,
+          "area" : 39,
+          "score" : 95
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 1.5룸",
+          "title" : "54 넓은 1.5룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 88,
+          "maintenance" : 8,
+          "area" : 32,
+          "score" : 86
+        } ],
+        "comparedAt" : 1795544978840
+      }, {
+        "id" : "서울 종로구 종로1가 54 · 54 깔끔한 원룸|서울 종로구 종로1가 54 · 54 넓은 투룸",
+        "regions" : [ "서울 종로구 종로1가 54 · 54 넓은 투룸", "서울 종로구 종로1가 54 · 54 깔끔한 원룸" ],
+        "properties" : [ {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 투룸",
+          "title" : "54 넓은 투룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 85,
+          "maintenance" : 10,
+          "area" : 39,
+          "score" : 95
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 깔끔한 원룸",
+          "title" : "54 깔끔한 원룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 60,
+          "maintenance" : 7,
+          "area" : 25,
+          "score" : 81
+        } ],
+        "comparedAt" : 1795542773478
+      }, {
+        "id" : "서울 종로구 종로1가 54 · 54 넓은 원룸|서울 종로구 종로1가 54 · 54 넓은 투룸|서울 종로구 종로1가 54 · 54 햇살 좋은 1.5룸",
+        "regions" : [ "서울 종로구 종로1가 54 · 54 넓은 투룸", "서울 종로구 종로1가 54 · 54 넓은 원룸", "서울 종로구 종로1가 54 · 54 햇살 좋은 1.5룸" ],
+        "properties" : [ {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 투룸",
+          "title" : "54 넓은 투룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 85,
+          "maintenance" : 10,
+          "area" : 39,
+          "score" : 95
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 원룸",
+          "title" : "54 넓은 원룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 59,
+          "maintenance" : 9,
+          "area" : 25,
+          "score" : 85
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 햇살 좋은 1.5룸",
+          "title" : "54 햇살 좋은 1.5룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 71,
+          "maintenance" : 8,
+          "area" : 32,
+          "score" : 80
+        } ],
+        "comparedAt" : 1795541947244
+      }, {
+        "id" : "서울 종로구 종로1가 54 · 54 넓은 원룸|서울 종로구 종로1가 54 · 54 넓은 투룸",
+        "regions" : [ "서울 종로구 종로1가 54 · 54 넓은 투룸", "서울 종로구 종로1가 54 · 54 넓은 원룸" ],
+        "properties" : [ {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 투룸",
+          "title" : "54 넓은 투룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 85,
+          "maintenance" : 10,
+          "area" : 39,
+          "score" : 95
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 원룸",
+          "title" : "54 넓은 원룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 59,
+          "maintenance" : 9,
+          "area" : 25,
+          "score" : 85
+        } ],
+        "comparedAt" : 1795541896587
+      } ],
+      "favorites" : [ "동탄", "우동" ],
+      "contracts" : [ {
+        "id" : "contract-1",
+        "fileName" : "임대차계약서_유성구.pdf",
+        "subtitle" : "주요 조항 점검 완료 · 어제",
+        "status" : "점검 완료",
+        "documentType" : "임대차계약서",
+        "region" : "대전광역시 유성구",
+        "uploadedAt" : "2026.11.22",
+        "disposalDue" : "D-28",
+        "summary" : "미충족 1 · 확인 필요 2"
+      }, {
+        "id" : "contract-2",
+        "fileName" : "월세이체내역_11월.png",
+        "subtitle" : "확인이 필요한 항목이 있어요 · 3일 전",
+        "status" : "확인 필요",
+        "documentType" : "월세 이체내역",
+        "region" : "충청남도 아산시",
+        "uploadedAt" : "2026.11.20",
+        "disposalDue" : "D-26",
+        "summary" : "확인 필요 1"
+      }, {
+        "id" : "contract-3",
+        "fileName" : "임대차계약서_북구.pdf",
+        "subtitle" : "분석을 준비하고 있어요 · 5일 전",
+        "status" : "분석 전",
+        "documentType" : "임대차계약서",
+        "region" : "광주광역시 북구",
+        "uploadedAt" : "2026.11.18",
+        "disposalDue" : "D-24",
+        "summary" : "분석 전"
+      }, {
+        "id" : "contract-4",
+        "fileName" : "월세이체내역_10월.jpg",
+        "subtitle" : "파일을 다시 확인해 주세요 · 6일 전",
+        "status" : "실패",
+        "documentType" : "월세 이체내역",
+        "region" : "대전광역시 유성구",
+        "uploadedAt" : "2026.11.17",
+        "disposalDue" : "D-23",
+        "summary" : "파일 판독 실패"
+      }, {
+        "id" : "contract-5",
+        "fileName" : "임대차계약서_아산시.pdf",
+        "subtitle" : "주요 조항을 점검 중이에요 · 방금 전",
+        "status" : "분석 중",
+        "documentType" : "임대차계약서",
+        "region" : "충청남도 아산시",
+        "uploadedAt" : "2026.11.23",
+        "disposalDue" : "D-30",
+        "summary" : "분석 진행 중"
+      } ]
+    },
+    "naver-demo" : {
+      "account" : {
+        "email" : "naver-demo@demo.local",
+        "nickname" : "테스트 사용자",
+        "passwordHash" : "$2a$10$r8LarZVUPWAnCM6eJJJuQugvKa8y7No1UtSBgDzwfL0Qcr2FuSCKW",
+        "provider" : "naver",
+        "providerLabel" : "네이버",
+        "createdAt" : "2026-11-24T18:05:33.014028900Z"
+      },
+      "journey" : {
+        "area" : null,
+        "regions" : { },
+        "dates" : { }
+      },
+      "conditions" : {
+        "birthDate" : {
+          "y" : "2002",
+          "m" : "10",
+          "d" : "28"
+        },
+        "region" : {
+          "sido" : "인천광역시",
+          "sigungu" : "부평구"
+        },
+        "targetRegions" : [ {
+          "sido" : "서울특별시",
+          "sigungu" : "종로구"
+        } ],
+        "roomTypes" : [ "원룸" ],
+        "dealType" : "월세",
+        "depositBudget" : 1000,
+        "rentBudget" : 60,
+        "income" : {
+          "amount" : 100,
+          "basis" : "post_tax"
+        },
+        "monthlyExpense" : {
+          "total" : 60,
+          "detail" : null
+        },
+        "livesApart" : "no",
+        "homeless" : "yes",
+        "workRegion" : {
+          "sido" : "서울특별시",
+          "sigungu" : "종로구"
+        },
+        "maxCommute" : 60,
+        "weights" : {
+          "transport" : 3,
+          "housingCost" : 5,
+          "amenities" : 4,
+          "disaster" : 1
+        },
+        "optionalConsent" : "agreed",
+        "optionalConsentAt" : "2026-11-24T18:06:43.765Z"
+      },
+      "recentRegions" : [ {
+        "name" : "우동",
+        "source" : "maru",
+        "viewedAt" : 1795544002254
+      }, {
+        "name" : "종각역",
+        "source" : "search",
+        "viewedAt" : 1795543681689
+      } ],
+      "comparisons" : [ {
+        "id" : "서울 종로구 종로1가 54 · 54 넓은 1.5룸|서울 종로구 종로1가 54 · 54 넓은 원룸|서울 종로구 종로1가 54 · 54 넓은 투룸",
+        "regions" : [ "서울 종로구 종로1가 54 · 54 넓은 원룸", "서울 종로구 종로1가 54 · 54 넓은 1.5룸", "서울 종로구 종로1가 54 · 54 넓은 투룸" ],
+        "properties" : [ {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 원룸",
+          "title" : "54 넓은 원룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 59,
+          "maintenance" : 9,
+          "area" : 25,
+          "score" : 85
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 1.5룸",
+          "title" : "54 넓은 1.5룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 88,
+          "maintenance" : 8,
+          "area" : 32,
+          "score" : 86
+        }, {
+          "label" : "서울 종로구 종로1가 54 · 54 넓은 투룸",
+          "title" : "54 넓은 투룸",
+          "location" : "서울 종로구 종로1가 54",
+          "rent" : 85,
+          "maintenance" : 10,
+          "area" : 39,
+          "score" : 95
+        } ],
+        "comparedAt" : 1795543705838
+      } ],
+      "favorites" : [ "종각역" ],
+      "contracts" : [ {
+        "id" : "contract-1",
+        "fileName" : "임대차계약서_유성구.pdf",
+        "subtitle" : "주요 조항 점검 완료 · 어제",
+        "status" : "점검 완료",
+        "documentType" : "임대차계약서",
+        "region" : "대전광역시 유성구",
+        "uploadedAt" : "2026.11.22",
+        "disposalDue" : "D-28",
+        "summary" : "미충족 1 · 확인 필요 2"
+      }, {
+        "id" : "contract-2",
+        "fileName" : "월세이체내역_11월.png",
+        "subtitle" : "확인이 필요한 항목이 있어요 · 3일 전",
+        "status" : "확인 필요",
+        "documentType" : "월세 이체내역",
+        "region" : "충청남도 아산시",
+        "uploadedAt" : "2026.11.20",
+        "disposalDue" : "D-26",
+        "summary" : "확인 필요 1"
+      }, {
+        "id" : "contract-3",
+        "fileName" : "임대차계약서_북구.pdf",
+        "subtitle" : "분석을 준비하고 있어요 · 5일 전",
+        "status" : "분석 전",
+        "documentType" : "임대차계약서",
+        "region" : "광주광역시 북구",
+        "uploadedAt" : "2026.11.18",
+        "disposalDue" : "D-24",
+        "summary" : "분석 전"
+      }, {
+        "id" : "contract-4",
+        "fileName" : "월세이체내역_10월.jpg",
+        "subtitle" : "파일을 다시 확인해 주세요 · 6일 전",
+        "status" : "실패",
+        "documentType" : "월세 이체내역",
+        "region" : "대전광역시 유성구",
+        "uploadedAt" : "2026.11.17",
+        "disposalDue" : "D-23",
+        "summary" : "파일 판독 실패"
+      }, {
+        "id" : "contract-5",
+        "fileName" : "임대차계약서_아산시.pdf",
+        "subtitle" : "주요 조항을 점검 중이에요 · 방금 전",
+        "status" : "분석 중",
+        "documentType" : "임대차계약서",
+        "region" : "충청남도 아산시",
+        "uploadedAt" : "2026.11.23",
+        "disposalDue" : "D-30",
+        "summary" : "분석 진행 중"
+      } ]
+    },
+    "github-demo" : {
+      "account" : {
+        "email" : "github-demo@demo.local",
+        "nickname" : "테스트 사용자",
+        "passwordHash" : "$2a$10$mDVB8pEHHNbvQVvtdRg0wuNRKzZYrGk1JdIVJe84wGXpEOXQTsySK",
+        "provider" : "github",
+        "providerLabel" : "GitHub",
+        "createdAt" : "2026-11-24T18:27:33.384620Z"
+      },
+      "journey" : {
+        "area" : null,
+        "regions" : { },
+        "dates" : { }
+      }
     }
+  },
+  "shared" : {
+    "community" : { }
   }
 }

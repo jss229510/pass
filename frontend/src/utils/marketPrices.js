@@ -32,6 +32,45 @@ const DONG_REGION_IDS = {
 
 const compact = (value) => (typeof value === "string" ? value.replace(/[\s>]/g, "") : "");
 
+function hashText(value) {
+  let hash = 0;
+  for (const character of value) hash = ((hash * 31) + character.charCodeAt(0)) >>> 0;
+  return hash;
+}
+
+function createDemoMarketRegion(regions, name) {
+  if (!regions.length) return null;
+  const hash = hashText(name);
+  const sameMetro = regions.filter((region) => compact(name).includes(compact(region.sido)));
+  const candidates = sameMetro.length ? sameMetro : regions;
+  const reference = candidates[hash % candidates.length];
+  const ratio = 0.85 + (hash % 31) / 100;
+  const snapshot = reference.snapshot;
+  const scale = (value, unit) => Math.max(unit, Math.round((value * ratio) / unit) * unit);
+  const change = ((hash % 91) - 45) / 10;
+  const unit = snapshot.rent === null ? 50 : 1;
+  const current = snapshot.rent === null ? scale(snapshot.deposit, unit) : scale(snapshot.rent, unit);
+  const start = current / (1 + change / 100);
+  const series = Array.from({ length: 12 }, (_, index) =>
+    Math.max(unit, Math.round((start + ((current - start) * index) / 11) / unit) * unit));
+
+  return {
+    ...reference,
+    id: `demo-${hash.toString(36)}`,
+    label: name,
+    path: name,
+    isDemo: true,
+    snapshot: {
+      ...snapshot,
+      deposit: scale(snapshot.deposit, 50),
+      rent: snapshot.rent === null ? null : scale(snapshot.rent, 1),
+      change,
+      samples: 12 + (hash % 64),
+      series,
+    },
+  };
+}
+
 export function findMarketRegion(regions, name) {
   const target = compact(name);
   if (!target || !Array.isArray(regions)) return null;
@@ -50,7 +89,9 @@ export function findMarketRegion(regions, name) {
 
   // "유성구"처럼 짧은 이름은 한 지역만 가리킬 때만 연결합니다.
   const partial = regions.filter((region) => compact(region.label).includes(target));
-  return partial.length === 1 ? partial[0] : null;
+  if (partial.length === 1) return partial[0];
+
+  return createDemoMarketRegion(regions, name);
 }
 
 const formatNumber = (value) => value.toLocaleString("ko-KR");

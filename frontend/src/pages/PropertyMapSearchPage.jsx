@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiCrosshair, FiMapPin, FiSearch, FiX } from "react-icons/fi";
-import { MdAccountBalance, MdDirectionsCar, MdDirectionsWalk, MdExpandMore, MdLocalGroceryStore, MdLocalHospital, MdPark, MdSchool, MdSubway } from "react-icons/md";
+import { MdAccountBalance, MdDirectionsCar, MdDirectionsWalk, MdExpandMore, MdFitnessCenter, MdLocalGroceryStore, MdLocalHospital, MdLocalLaundryService, MdPark, MdSchool, MdShoppingBag, MdStore, MdSubway } from "react-icons/md";
 import PropertyPinMap from "../components/PropertyPinMap";
 import { MAX_COMPARE, formatManwon, generateListings, getFallbackLocation } from "../data/mapListingData";
 import { findRegionLabel } from "../utils/kakaoRegion";
 import { loadKakaoMaps } from "../utils/loadKakaoMaps";
-import { FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
+import { FACILITY_TYPES, LIFESTYLE_FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
 import { recordRecentRegion, recordRegionComparison } from "../utils/recentRegionsStore";
 import { apiRequest } from "../utils/apiClient";
 import "./PropertyMapSearchPage.css";
@@ -17,13 +17,19 @@ const facilityIcons = {
   public: MdAccountBalance,
   university: MdSchool,
   park: MdPark,
+  bungeoppang: MdStore,
+  station: MdSubway,
+  walk: MdDirectionsWalk,
+  fitness: MdFitnessCenter,
+  laundry: MdLocalLaundryService,
+  daiso: MdShoppingBag,
 };
 
 const noPlaceText = `${SEARCH_RADIUS / 1000}km 안에 없음`;
 
-function FacilityList({ state, onRetry }) {
+function FacilityList({ state, facilityTypes, onRetry }) {
   if (!state || state.status === "loading") {
-    return <ul className="facility-list">{FACILITY_TYPES.map((type) => <li className="facility-skeleton" key={type.key} aria-hidden="true"><i /><span /></li>)}</ul>;
+    return <ul className="facility-list">{facilityTypes.map((type) => <li className="facility-skeleton" key={type.key} aria-hidden="true"><i /><span /></li>)}</ul>;
   }
   if (state.status === "error") {
     return (
@@ -35,7 +41,8 @@ function FacilityList({ state, onRetry }) {
   }
   return (
     <ul className="facility-list">
-      {state.items.map((item) => {
+      {facilityTypes.map((type) => {
+        const item = state.items.find((facility) => facility.key === type.key) ?? { ...type, place: null };
         const Icon = facilityIcons[item.key];
         return (
           <li key={item.key} className={item.place ? "" : "empty"}>
@@ -69,8 +76,7 @@ async function getLocationPermission() {
   }
 }
 
-const DEFAULT_QUERY = "대전 유성구";
-const quickRegions = ["대전 유성구", "충남 아산시", "광주 북구", "서울 마포구", "판교역", "카이스트"];
+const DEFAULT_QUERY = "종각역";
 
 const compareRows = [
   { label: "보증금", value: (item) => item.deposit, format: formatManwon, better: "low", bestLabel: "최저" },
@@ -94,7 +100,7 @@ function getBestValue(row, items) {
 }
 
 function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions = [] }) {
-  const [searchText, setSearchText] = useState(DEFAULT_QUERY);
+  const [searchText, setSearchText] = useState("");
   const [query, setQuery] = useState(DEFAULT_QUERY);
   // 지도에 키워드 검색을 맡길 검색어. 지도 클릭으로 위치를 정하면 비워 둡니다.
   const [mapQuery, setMapQuery] = useState(DEFAULT_QUERY);
@@ -106,6 +112,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
   const [focusRequest, setFocusRequest] = useState(null);
   const [notice, setNotice] = useState("");
   const [facilitiesById, setFacilitiesById] = useState({});
+  const [selectedLifestyleKeys, setSelectedLifestyleKeys] = useState([]);
   const requestedFacilitiesRef = useRef(new Set());
   const noticeTimerRef = useRef(null);
   const compareRef = useRef(null);
@@ -249,26 +256,36 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
   }, [autoComparePending, selected]);
 
   // 선택한 매물마다 주변 주요시설을 한 번만 검색해서 저장해 둡니다.
-  const loadFacilities = useCallback((listing) => {
-    requestedFacilitiesRef.current.add(listing.id);
+  const loadFacilities = useCallback((listing, facilityTypes) => {
+    const requestKey = `${listing.id}:${facilityTypes.map((type) => type.key).join(",")}`;
+    requestedFacilitiesRef.current.add(requestKey);
     setFacilitiesById((current) => ({ ...current, [listing.id]: { status: "loading" } }));
-    fetchNearbyFacilities(listing)
+    fetchNearbyFacilities(listing, facilityTypes)
       .then((items) => setFacilitiesById((current) => ({ ...current, [listing.id]: { status: "done", items } })))
       .catch((error) => {
-        requestedFacilitiesRef.current.delete(listing.id);
+        requestedFacilitiesRef.current.delete(requestKey);
         setFacilitiesById((current) => ({ ...current, [listing.id]: { status: "error", message: error.message || "주변 시설을 불러오지 못했어요." } }));
       });
   }, []);
 
+  const visibleFacilityTypes = useMemo(
+    () => [...FACILITY_TYPES, ...LIFESTYLE_FACILITY_TYPES.filter((type) => selectedLifestyleKeys.includes(type.key))],
+    [selectedLifestyleKeys],
+  );
+
   useEffect(() => {
     selected.forEach((listing) => {
-      if (!requestedFacilitiesRef.current.has(listing.id) && facilitiesById[listing.id]?.status !== "error") loadFacilities(listing);
+      const requestKey = `${listing.id}:${visibleFacilityTypes.map((type) => type.key).join(",")}`;
+      if (!requestedFacilitiesRef.current.has(requestKey) && facilitiesById[listing.id]?.status !== "error") loadFacilities(listing, visibleFacilityTypes);
     });
-  }, [selected, facilitiesById, loadFacilities]);
+  }, [selected, facilitiesById, loadFacilities, visibleFacilityTypes]);
 
   const selectedIds = useMemo(() => selected.map((item) => item.id), [selected]);
   const pins = useMemo(() => [...listings, ...selected.filter((item) => !listings.some((listing) => listing.id === item.id))], [listings, selected]);
   const activeListing = selected.find((item) => item.id === activeId) ?? null;
+  const activeFacilities = activeListing && facilitiesById[activeListing.id]?.status === "done"
+    ? facilitiesById[activeListing.id].items.filter((facility) => visibleFacilityTypes.some((type) => type.key === facility.key))
+    : null;
   const cheapest = selected.length >= 2 ? selected.reduce((best, item) => (item.rent + item.maintenance < best.rent + best.maintenance ? item : best)) : null;
 
   const showNotice = (message) => {
@@ -389,6 +406,12 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
     setActiveId(null);
   };
 
+  const toggleLifestyleFacility = (key) => {
+    setSelectedLifestyleKeys((current) => current.includes(key)
+      ? current.filter((item) => item !== key)
+      : [...current, key]);
+  };
+
   const scrollToCompare = () => {
     if (selected.length >= 2) {
       recordRegionComparison(selected.map(({ title, location, rent, maintenance, area, score }) => ({ title, location, rent, maintenance, area, score })));
@@ -409,17 +432,20 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
         </div>
         <form className="map-search-form" onSubmit={(event) => { event.preventDefault(); runSearch(searchText); }}>
           <FiSearch aria-hidden="true" />
-          <input value={searchText} onChange={(event) => setSearchText(event.target.value)} aria-label="지역 검색" placeholder="지역명, 역, 회사·학교 위치 검색" />
+          <input value={searchText} onChange={(event) => setSearchText(event.target.value)} aria-label="지역 검색" placeholder="예) 서울 종로구" />
           <button type="submit">검색</button>
         </form>
       </header>
 
-      <div className="map-search-chips" aria-label="빠른 지역 선택">
-        {quickRegions.map((region) => (
-          <button type="button" key={region} className={region === query ? "active" : ""} onClick={() => runSearch(region)}>
-            <FiMapPin aria-hidden="true" />{region}
-          </button>
-        ))}
+      <div className="map-search-chips" aria-label="생활권 시설 선택">
+        {LIFESTYLE_FACILITY_TYPES.map((type) => {
+          const Icon = facilityIcons[type.key];
+          return (
+            <button type="button" key={type.key} className={selectedLifestyleKeys.includes(type.key) ? "active" : ""} aria-pressed={selectedLifestyleKeys.includes(type.key)} onClick={() => toggleLifestyleFacility(type.key)}>
+              <Icon aria-hidden="true" />{type.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="map-search-layout">
@@ -465,7 +491,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
                       </button>
                       <button type="button" className="map-search-selected-remove" aria-label={`${item.title} 선택 해제`} onClick={() => toggleListing(item)}><FiX aria-hidden="true" /></button>
                     </div>
-                    {isOpen && <FacilityList state={state} onRetry={mapError ? null : () => loadFacilities(item)} />}
+                    {isOpen && <FacilityList state={state} facilityTypes={visibleFacilityTypes} onRetry={mapError ? null : () => loadFacilities(item, visibleFacilityTypes)} />}
                   </li>
                 );
               })}
@@ -478,7 +504,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
 
         <div className="map-search-map">
           <PropertyPinMap
-            facilities={activeListing && facilitiesById[activeListing.id]?.status === "done" ? facilitiesById[activeListing.id].items : null}
+            facilities={activeFacilities}
             facilityOrigin={activeListing}
             searchQuery={mapError ? "" : mapQuery}
             pins={pins}

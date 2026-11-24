@@ -73,7 +73,12 @@ function getNavigationEntry(state) {
 }
 
 function createInitialNavigation() {
-  return getNavigationEntry(window.history.state) ?? {
+  const storedNavigation = getNavigationEntry(window.history.state);
+  if (storedNavigation) {
+    const { mapSearchRegion, mapCompareRegions, ...navigation } = storedNavigation;
+    return navigation;
+  }
+  return {
     step: getStoredStep(),
     depth: 0,
     propertyId: getStoredProperty().id,
@@ -250,7 +255,7 @@ function App() {
     resetUserCache();
     setAuthUser(null);
     notify("로그아웃했습니다.");
-    navigate("landing", {}, true);
+    navigate("login", {}, true);
   };
 
   const isAuthPage = step === "login" || step === "signup";
