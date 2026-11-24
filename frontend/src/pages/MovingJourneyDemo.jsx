@@ -220,7 +220,7 @@ export function DemoContract({ home }) {
   );
 }
 
-export function DemoMoving({ moving, onChange }) {
+export function DemoMoving({ moving, onChange, quoteLink }) {
   const [showRequest, setShowRequest] = useState(false);
   const { distance, stairs, vendorId } = moving;
   const km = distance === "" ? null : Number(distance);
@@ -238,6 +238,7 @@ export function DemoMoving({ moving, onChange }) {
         <label className="journey-demo-checkbox"><input type="checkbox" checked={stairs} onChange={event => onChange({ stairs: event.target.checked })} /> 계단 작업 가정 (+6만 원)</label>
       </div>
       {estimate != null && <p className="journey-demo-total">예상 이사비 <strong>{cost(estimate)}</strong><small>기본 23만 원 + 거리 요금{stairs && " + 계단 작업 6만 원"} · 시연용</small></p>}
+      {quoteLink}
       <h3>이 구간을 운행하는 이사업체 예시</h3>
       {available.length === 0 && <p>{km == null ? "거리를 입력하면 운행 범위를 비교할 수 있어요." : "가상 업체 목록에 이 거리를 운행하는 곳이 없어요."}</p>}
       <div className="journey-demo-grid">

@@ -39,6 +39,7 @@ const policies = {
   },
 };
 const returnGuaranteeUrl = "https://www.khug.or.kr/hug/web/ig/dr/igdr000001.jsp";
+const movingQuoteUrl = "https://www.miso.kr/moving";
 const protectionByStage = {
   3: {
     title: "보증금 반환보증 · 계약 전 확인",
@@ -211,8 +212,11 @@ export default function MovingJourneyPage({
   const firstOpen = complete.indexOf(false) + 1;
   const nextTask = firstOpen < 3 ? ["이사 준비 완료", "마루의 맞춤 추천 받기", "계약을 검토할 집 고르기"][firstOpen]
     : stageTasks[firstOpen].find(task => !checked.includes(task));
-  const nearDate = dateFields.filter(([key]) => dates[key] && daysUntil(dates[key]) >= 0)
-    .sort(([a], [b]) => dates[a].localeCompare(dates[b]))[0]?.[0];
+  const movingQuoteLink = view === 4 && (
+    <div className="journey-actions">
+      <a href={movingQuoteUrl} target="_blank" rel="noopener noreferrer">미소에서 이사 견적 비교하기 ↗</a>
+    </div>
+  );
   const openItems = [
     selected?.question && !checked.includes(demo ? demoStageTasks[3][1] : tasks[3][3]) ? [selected.question, 3] : null,
     homes.some(home => home.maintenance == null) ? ["관심 매물 관리비 미확인", 2] : null,
@@ -310,15 +314,23 @@ export default function MovingJourneyPage({
             <section className="journey-card">
               <h2>주요 일정</h2>
               <div className="journey-fields">
-                {dateFields.map(([key, label]) => (
-                  <label key={key}>{label}
-                    {nearDate === key && <strong className="journey-deadline">{daysUntil(dates[key]) === 0 ? "오늘" : "D-" + daysUntil(dates[key])}</strong>}
-                    <input type="date" value={dates[key] ?? ""} onChange={event => {
-                      const value = event.target.value;
-                      onUpdate(current => ({ ...current, dates: { ...current.dates, [key]: value } }));
-                    }} />
-                  </label>
-                ))}
+                {dateFields.map(([key, label]) => {
+                  const remainingDays = dates[key] ? daysUntil(dates[key]) : null;
+                  return (
+                    <label key={key}>
+                      <span className="journey-date-heading">
+                        <span>{label}</span>
+                        {remainingDays !== null && remainingDays >= 0 && (
+                          <strong className="journey-deadline">{remainingDays === 0 ? "D-day" : "D-" + remainingDays}</strong>
+                        )}
+                      </span>
+                      <input type="date" value={dates[key] ?? ""} onChange={event => {
+                        const value = event.target.value;
+                        onUpdate(current => ({ ...current, dates: { ...current.dates, [key]: value } }));
+                      }} />
+                    </label>
+                  );
+                })}
               </div>
             </section>
             <section className="journey-card">
@@ -370,7 +382,7 @@ export default function MovingJourneyPage({
             {selected ? <>
               {view !== 3 && <p className="journey-meta">선택한 집 · {selected.title}</p>}
               {view === 3 && selected.question && <details className="journey-compact"><summary>집 비교에서 적은 질문</summary><p>{selected.question}</p></details>}
-              {demo && view === 4 && <DemoMoving moving={plan.moving} onChange={changes =>
+              {demo && view === 4 && <DemoMoving moving={plan.moving} quoteLink={movingQuoteLink} onChange={changes =>
                 onUpdate(current => ({ ...current, moving: { ...current.moving, ...changes } }))
               } />}
               {demo && view === 5 && <DemoMoveIn moveDate={dates.move} />}
@@ -383,6 +395,7 @@ export default function MovingJourneyPage({
                 </div>
               </section>
             </> : <><p>집을 선택하면 해당 집의 할 일과 확인 상태를 기록할 수 있어요.</p><button type="button" onClick={() => goTo(area ? 2 : 1)}>{area ? "집 비교로 이동" : "동네 찾기로 이동"}</button></>}
+            {(!demo || !selected) && movingQuoteLink}
             <PolicyCard policy={protectionByStage[view]} />
             {!demo && view >= 4 && <PolicyCard kind="moving" region={area?.city} />}
             {!demo && view === 5 && <PolicyCard kind="rent" region={area?.city} />}
