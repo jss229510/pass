@@ -5,6 +5,7 @@ import {
   getRecommendations, isSkipped, marketSample, money, names,
   noPreference, priceText, pyeong, step, totalSteps,
 } from "../data/maruRecommendation";
+import { recordRecentRegion } from "../utils/recentRegionsStore";
 import "./AiRecommendationPage.css";
 
 const leafletUrl = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet";
@@ -444,6 +445,7 @@ export default function AiRecommendationPage({ flow, onFlowChange, onBack, onSav
 
   function select(name) {
     if (name === selected && Boolean(name) === focus) return;
+    if (name) recordRecentRegion(name, "maru");
     onFlowChange({ selected: name, focus: Boolean(name) }, !done || name === selected);
   }
 

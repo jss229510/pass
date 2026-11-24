@@ -4,6 +4,7 @@ import { MdAccountBalance, MdDirectionsCar, MdDirectionsWalk, MdExpandMore, MdLo
 import PropertyPinMap from "../components/PropertyPinMap";
 import { MAX_COMPARE, formatManwon, generateListings, getFallbackLocation } from "../data/mapListingData";
 import { FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
+import { recordRecentRegion, recordRegionComparison } from "../utils/recentRegionsStore";
 import "./PropertyMapSearchPage.css";
 
 const facilityIcons = {
@@ -79,7 +80,7 @@ function getBestValue(row, items) {
   return row.better === "low" ? Math.min(...values) : Math.max(...values);
 }
 
-function PropertyMapSearchPage() {
+function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions = [] }) {
   const [searchText, setSearchText] = useState(DEFAULT_QUERY);
   const [query, setQuery] = useState(DEFAULT_QUERY);
   const [location, setLocation] = useState(null);
@@ -93,8 +94,52 @@ function PropertyMapSearchPage() {
   const requestedFacilitiesRef = useRef(new Set());
   const noticeTimerRef = useRef(null);
   const compareRef = useRef(null);
+  const handledCompareRegionsRef = useRef("");
+  const handledSearchRegionRef = useRef("");
+  const [autoComparePending, setAutoComparePending] = useState(false);
 
   useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
+
+  useEffect(() => {
+    const regions = [...new Set(initialCompareRegions.map((region) => region.trim()).filter(Boolean))].slice(0, MAX_COMPARE);
+    const requestKey = regions.join("|");
+    if (regions.length < 2 || handledCompareRegionsRef.current === requestKey) return;
+
+    handledCompareRegionsRef.current = requestKey;
+    const listingsToCompare = regions.map((region) => {
+      const location = { ...getFallbackLocation(region), address: region, placeName: region, query: region };
+      return generateListings(location)[0];
+    });
+    setSearchText(regions[0]);
+    setQuery(regions[0]);
+    setLocation({ ...getFallbackLocation(regions[0]), address: regions[0], placeName: regions[0], query: regions[0] });
+    setSelected(listingsToCompare);
+    setActiveId(listingsToCompare[0]?.id ?? null);
+    setAutoComparePending(true);
+    setStatus("done");
+  }, [initialCompareRegions]);
+
+  useEffect(() => {
+    const region = initialSearchRegion.trim();
+    if (!region || handledSearchRegionRef.current === region) return;
+
+    handledSearchRegionRef.current = region;
+    setSearchText(region);
+    setQuery(region);
+    setLocation({ ...getFallbackLocation(region), address: region, placeName: region, query: region });
+    setSelected([]);
+    setActiveId(null);
+    setStatus("done");
+  }, [initialSearchRegion]);
+
+  useEffect(() => {
+    if (!autoComparePending || selected.length < 2) return;
+    const timer = window.setTimeout(() => {
+      compareRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setAutoComparePending(false);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [autoComparePending, selected]);
 
   // 선택한 매물마다 주변 주요시설을 한 번만 검색해서 저장해 둡니다.
   const loadFacilities = useCallback((listing) => {
@@ -129,6 +174,7 @@ function PropertyMapSearchPage() {
   const runSearch = (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    recordRecentRegion(trimmed, "search");
     setSearchText(trimmed);
     if (mapError) {
       setQuery(trimmed);
@@ -182,7 +228,12 @@ function PropertyMapSearchPage() {
     setActiveId(null);
   };
 
-  const scrollToCompare = () => compareRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollToCompare = () => {
+    if (selected.length >= 2) {
+      recordRegionComparison(selected.map(({ title, location, rent, maintenance, area, score }) => ({ title, location, rent, maintenance, area, score })));
+    }
+    compareRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const orderOf = (id) => selectedIds.indexOf(id) + 1;
   const areaLabel = listings[0]?.location ?? query;
