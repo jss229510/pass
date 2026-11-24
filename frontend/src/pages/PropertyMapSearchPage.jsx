@@ -3,6 +3,8 @@ import { FiCrosshair, FiMapPin, FiSearch, FiX } from "react-icons/fi";
 import { MdAccountBalance, MdDirectionsCar, MdDirectionsWalk, MdExpandMore, MdLocalGroceryStore, MdLocalHospital, MdPark, MdSchool, MdSubway } from "react-icons/md";
 import PropertyPinMap from "../components/PropertyPinMap";
 import { MAX_COMPARE, formatManwon, generateListings, getFallbackLocation } from "../data/mapListingData";
+import { findRegionLabel } from "../utils/kakaoRegion";
+import { loadKakaoMaps } from "../utils/loadKakaoMaps";
 import { FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
 import { recordRecentRegion, recordRegionComparison } from "../utils/recentRegionsStore";
 import "./PropertyMapSearchPage.css";
@@ -56,6 +58,16 @@ function FacilityList({ state, onRetry }) {
   );
 }
 
+// "granted" | "prompt" | "denied". 권한 조회를 지원하지 않는 브라우저는 "prompt"로 봅니다.
+async function getLocationPermission() {
+  try {
+    const result = await navigator.permissions.query({ name: "geolocation" });
+    return result.state;
+  } catch {
+    return "prompt";
+  }
+}
+
 const DEFAULT_QUERY = "대전 유성구";
 const quickRegions = ["대전 유성구", "충남 아산시", "광주 북구", "서울 마포구", "판교역", "카이스트"];
 
@@ -83,6 +95,8 @@ function getBestValue(row, items) {
 function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions = [] }) {
   const [searchText, setSearchText] = useState(DEFAULT_QUERY);
   const [query, setQuery] = useState(DEFAULT_QUERY);
+  // 지도에 키워드 검색을 맡길 검색어. 지도 클릭으로 위치를 정하면 비워 둡니다.
+  const [mapQuery, setMapQuery] = useState(DEFAULT_QUERY);
   const [location, setLocation] = useState(null);
   const [status, setStatus] = useState("loading");
   const [mapError, setMapError] = useState("");
@@ -100,6 +114,49 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
 
   useEffect(() => () => window.clearTimeout(noticeTimerRef.current), []);
 
+  // 지도 좌측 상단 "현재 내 주변" 버튼. 위치 권한이 이미 허용된 경우에만 처음부터 내 동네를 보여 줍니다.
+  const [myLocation, setMyLocation] = useState({ status: "idle" });
+  const [permissionDialog, setPermissionDialog] = useState(null); // "ask" | "denied" | null
+  const permissionDialogRef = useRef(null);
+  const onLocatedRef = useRef(null);
+
+  const locateMe = useCallback((onLocated) => {
+    if (!navigator.geolocation) {
+      setMyLocation({ status: "error", message: "위치 확인을 지원하지 않는 브라우저예요" });
+      return;
+    }
+    setMyLocation({ status: "loading" });
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const { latitude: lat, longitude: lng } = coords;
+        let label = null;
+        try {
+          label = await findRegionLabel(await loadKakaoMaps(), lat, lng);
+        } catch {
+          label = null;
+        }
+        const found = { status: "done", lat, lng, label };
+        setMyLocation(found);
+        onLocated?.(found);
+      },
+      (error) => setMyLocation({ status: "error", message: error.code === error.PERMISSION_DENIED ? "위치 권한이 꺼져 있어요" : "내 위치를 찾지 못했어요" }),
+      { timeout: 10000, maximumAge: 60 * 1000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    getLocationPermission().then((state) => {
+      if (state === "granted") locateMe();
+    });
+  }, [locateMe]);
+
+  useEffect(() => {
+    const dialog = permissionDialogRef.current;
+    if (!dialog) return;
+    if (permissionDialog && !dialog.open) dialog.showModal();
+    if (!permissionDialog && dialog.open) dialog.close();
+  }, [permissionDialog]);
+
   useEffect(() => {
     const regions = [...new Set(initialCompareRegions.map((region) => region.trim()).filter(Boolean))].slice(0, MAX_COMPARE);
     const requestKey = regions.join("|");
@@ -112,6 +169,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
     });
     setSearchText(regions[0]);
     setQuery(regions[0]);
+    setMapQuery(regions[0]);
     setLocation({ ...getFallbackLocation(regions[0]), address: regions[0], placeName: regions[0], query: regions[0] });
     setSelected(listingsToCompare);
     setActiveId(listingsToCompare[0]?.id ?? null);
@@ -126,6 +184,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
     handledSearchRegionRef.current = region;
     setSearchText(region);
     setQuery(region);
+    setMapQuery(region);
     setLocation({ ...getFallbackLocation(region), address: region, placeName: region, query: region });
     setSelected([]);
     setActiveId(null);
@@ -182,9 +241,55 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
       setStatus("done");
       return;
     }
-    if (trimmed === query && status !== "failed") return;
+    if (trimmed === query && mapQuery === trimmed && status !== "failed") return;
     setQuery(trimmed);
+    setMapQuery(trimmed);
     setStatus("loading");
+  };
+
+  // 지도를 클릭한 곳의 동네를 검색한 것처럼 처리합니다.
+  const handleMapClick = (result) => {
+    if (!result) {
+      showNotice("이 위치의 지역 정보를 찾지 못했어요. 다른 곳을 눌러 보세요.");
+      return;
+    }
+    recordRecentRegion(result.placeName, "search");
+    setSearchText(result.placeName);
+    setQuery(result.placeName);
+    setMapQuery("");
+    setLocation({ ...result, query: result.placeName });
+    setStatus("done");
+  };
+
+  const moveToFound = (found) => {
+    if (!found.label) {
+      showNotice("내 위치의 지역 이름을 찾지 못했어요.");
+      return;
+    }
+    handleMapClick({ lat: found.lat, lng: found.lng, address: found.label, placeName: found.label });
+  };
+  onLocatedRef.current = moveToFound;
+
+  // 권한이 있으면 바로 이동, 없으면 허용 여부를 먼저 묻습니다.
+  const goToMyLocation = async () => {
+    if (!navigator.geolocation) {
+      showNotice("이 브라우저는 위치 확인을 지원하지 않아요.");
+      return;
+    }
+    const state = await getLocationPermission();
+    if (state === "granted") locateMe((found) => onLocatedRef.current(found));
+    else setPermissionDialog(state === "denied" ? "denied" : "ask");
+  };
+
+  const allowLocation = () => {
+    setPermissionDialog(null);
+    // 브라우저 기본 권한 창이 뜨고, 허용하면 그 위치로 지도를 옮깁니다.
+    locateMe((found) => onLocatedRef.current(found));
+  };
+
+  const retryLocation = () => {
+    setPermissionDialog(null);
+    goToMyLocation();
   };
 
   const handleLocate = (result) => {
@@ -319,7 +424,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
           <PropertyPinMap
             facilities={activeListing && facilitiesById[activeListing.id]?.status === "done" ? facilitiesById[activeListing.id].items : null}
             facilityOrigin={activeListing}
-            searchQuery={mapError ? "" : query}
+            searchQuery={mapError ? "" : mapQuery}
             pins={pins}
             boundsListings={listings}
             selectedIds={selectedIds}
@@ -328,8 +433,21 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
             onLocate={handleLocate}
             onError={handleMapError}
             onPinClick={(listing) => toggleListing(listing)}
+            onMapClick={handleMapClick}
           />
-          <div className="map-search-map-badge"><FiCrosshair aria-hidden="true" />{location?.placeName ?? query}</div>
+          <button
+            type="button"
+            className={`map-search-map-badge ${myLocation.status}`}
+            onClick={goToMyLocation}
+            disabled={myLocation.status === "loading"}
+            aria-label={myLocation.status === "done" ? `현재 내 주변 ${myLocation.label ?? ""}로 이동` : myLocation.status === "loading" ? "내 위치 찾는 중" : "현재 내 주변으로 이동"}
+          >
+            <FiCrosshair aria-hidden="true" />
+            {myLocation.status === "idle" && "현재 내 주변"}
+            {myLocation.status === "loading" && "내 위치 찾는 중…"}
+            {myLocation.status === "done" && <><small>현재 내 주변</small>{myLocation.label ?? "알 수 없음"}</>}
+            {myLocation.status === "error" && <>현재 내 주변 <small>· {myLocation.message}</small></>}
+          </button>
           <div className="map-search-map-actions">
             <span>선택 {selected.length}/{MAX_COMPARE}</span>
             <button type="button" onClick={clearSelection} disabled={!selected.length}>모두 선택 해제</button>
@@ -366,6 +484,33 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
           )}
         </div>
       </div>
+
+      <dialog
+        ref={permissionDialogRef}
+        className="location-permission-dialog"
+        aria-labelledby="location-permission-title"
+        onClose={() => setPermissionDialog(null)}
+      >
+        {permissionDialog === "denied" ? (
+          <>
+            <h2 id="location-permission-title">위치 정보가 차단되어 있어요</h2>
+            <p>브라우저에서 이 사이트의 위치 정보를 막아 두어 다시 물어볼 수 없어요. 주소창 왼쪽의 사이트 정보(자물쇠) 아이콘을 눌러 <b>위치</b>를 <b>허용</b>으로 바꾼 뒤 다시 시도해 주세요.</p>
+            <div className="location-permission-actions">
+              <button type="button" className="ghost" onClick={() => setPermissionDialog(null)}>닫기</button>
+              <button type="button" className="primary" onClick={retryLocation}>다시 시도</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 id="location-permission-title">웹사이트에서 위치정보를 허용하시겠습니까?</h2>
+            <p>현재 위치 주변의 매물을 지도에 보여 드리기 위해 위치 정보를 사용해요. 허용을 누르면 브라우저에서 한 번 더 확인해요.</p>
+            <div className="location-permission-actions">
+              <button type="button" className="ghost" onClick={() => setPermissionDialog(null)}>허용 안 함</button>
+              <button type="button" className="primary" onClick={allowLocation}>허용</button>
+            </div>
+          </>
+        )}
+      </dialog>
 
       <section className="map-compare" ref={compareRef} aria-labelledby="map-compare-title">
         <div className="map-compare-head">
