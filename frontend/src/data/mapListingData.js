@@ -49,7 +49,7 @@ function createRandom(seed) {
 
 const between = (random, [min, max]) => min + random() * (max - min);
 
-function distanceMeters(a, b) {
+export function distanceMeters(a, b) {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);

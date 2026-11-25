@@ -7,6 +7,7 @@ import { findRegionLabel } from "../utils/kakaoRegion";
 import { loadKakaoMaps } from "../utils/loadKakaoMaps";
 import { FACILITY_TYPES, LIFESTYLE_FACILITY_TYPES, SEARCH_RADIUS, fetchNearbyFacilities, formatDistance } from "../utils/nearbyFacilities";
 import { recordRecentRegion, recordRegionComparison } from "../utils/recentRegionsStore";
+import { snapListingsToBuildings } from "../utils/snapListingsToBuildings";
 import { apiRequest } from "../utils/apiClient";
 import "./PropertyMapSearchPage.css";
 
@@ -99,6 +100,22 @@ function getBestValue(row, items) {
   return row.better === "low" ? Math.min(...values) : Math.max(...values);
 }
 
+// 매물을 불러온 뒤 핀을 주변 실제 주거용 건물 위치로 옮깁니다.
+// 백엔드에 연결할 수 없으면 목업 매물을, 건물 검색에 실패하면 원래 좌표를 그대로 씁니다.
+function loadListings(location) {
+  const parameters = new URLSearchParams({
+    query: location.query,
+    lat: String(location.lat),
+    lng: String(location.lng),
+    address: location.address || "",
+    placeName: location.placeName || "",
+  });
+  return apiRequest(`/api/listings?${parameters}`)
+    .then((value) => (Array.isArray(value) ? value : []))
+    .catch(() => generateListings(location))
+    .then((items) => snapListingsToBuildings(items, location).catch(() => items));
+}
+
 function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions = [] }) {
   const [searchText, setSearchText] = useState("");
   const [query, setQuery] = useState(DEFAULT_QUERY);
@@ -129,21 +146,9 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
       return undefined;
     }
     let cancelled = false;
-    const parameters = new URLSearchParams({
-      query: location.query || query,
-      lat: String(location.lat),
-      lng: String(location.lng),
-      address: location.address || "",
-      placeName: location.placeName || "",
+    loadListings({ ...location, query: location.query || query }).then((items) => {
+      if (!cancelled) setListings(items);
     });
-    apiRequest(`/api/listings?${parameters}`)
-      .then((value) => {
-        if (!cancelled) setListings(Array.isArray(value) ? value : []);
-      })
-      .catch(() => {
-        // 백엔드에 연결할 수 없으면 기존 목업 매물을 그대로 보여 줍니다.
-        if (!cancelled) setListings(generateListings({ ...location, query: location.query || query }));
-      });
     return () => { cancelled = true; };
   }, [location, query]);
 
@@ -209,16 +214,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
     setMapQuery(regions[0]);
     setLocation(locations[0]);
     setStatus("done");
-    Promise.all(locations.map((location) => {
-      const parameters = new URLSearchParams({
-        query: location.query,
-        lat: String(location.lat),
-        lng: String(location.lng),
-        address: location.address,
-        placeName: location.placeName,
-      });
-      return apiRequest(`/api/listings?${parameters}`).catch(() => generateListings(location));
-    }))
+    Promise.all(locations.map(loadListings))
       .then((results) => {
         if (cancelled) return;
         const listingsToCompare = results.map((items) => Array.isArray(items) ? items[0] : null).filter(Boolean);
@@ -542,7 +538,7 @@ function PropertyMapSearchPage({ initialSearchRegion = "", initialCompareRegions
                 <i>{orderOf(activeListing.id)}</i>
                 <div>
                   <b>{activeListing.title}</b>
-                  <small>{activeListing.location}</small>
+                  <small>{activeListing.buildingAddress ?? activeListing.location}</small>
                 </div>
                 <button type="button" className="map-search-info-close" aria-label="정보 닫기" onClick={() => setActiveId(null)}><FiX aria-hidden="true" /></button>
               </header>
